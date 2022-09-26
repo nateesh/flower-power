@@ -52,7 +52,58 @@ def task3(import_model):
 
 def task4():
     
-    None
+    # using https://keras.io/examples/vision/image_classification_from_scratch/
+    # https://www.tensorflow.org/tutorials/images/classification
+    
+    IMAGE_SIZE = (256, 256)
+    directory_path = "flower_dataset/small_flower_dataset"
+    
+    train_ds = utils.image_dataset_from_directory(
+        directory=directory_path,
+        labels="inferred",
+        label_mode="int",
+        image_size=IMAGE_SIZE,
+        color_mode="rgb",
+        shuffle=True,
+        seed=2, # same seed for both X and y datasets to avoid overlap, could be any number but must be same
+        validation_split=0.2, # portion (%) reserved for validation
+        subset="training" # portion to be assignment to X_dataset
+        )
+    
+    val_ds = utils.image_dataset_from_directory(
+        directory=directory_path,
+        labels="inferred",
+        label_mode="int",
+        image_size=IMAGE_SIZE,
+        color_mode="rgb",
+        shuffle=True,
+        seed=2,
+        validation_split=0.2,
+        subset="validation"
+        )
+    
+    # ------- Plot sample of images
+    # plt.figure(figsize=(10, 10))
+    # for images, labels in train_ds.take(1):
+    #     for i in range(9):
+    #         ax = plt.subplot(3, 3, i + 1)
+    #         plt.imshow(images[i].numpy().astype("uint8"))
+    #         plt.title(int(labels[i]))
+    #         plt.axis("off")
+    # plt.show()
+    
+    # --- Resacle the training dataset (q: what about test dataset)
+    rescaling_layer = layers.Rescaling(scale=1.0 / 255)
+    train_ds_rescaled = train_ds.map(lambda x, y: (rescaling_layer(x), y))
+
+    return train_ds_rescaled, val_ds
+
+
+# ------
+# Task 5 - Compile and train your model with an SGD3 optimizer using the 
+# following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
+# ------
+
 
 # ----- This is what Fred was talking about in the tutorial
 # To rescale an input in the [0, 255] range to be
