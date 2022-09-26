@@ -106,11 +106,13 @@ def task5(model, train_ds, val_ds):
     """
     # Task 5 - Compile and train your model with an SGD3 optimizer using the 
     # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
+    
+    https://keras.io/examples/vision/image_classification_from_scratch/
+    
     """
     
     # "use buffered prefetching so we can yield data 
     # from disk without having I/O becoming blocking"    
-    
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
     
@@ -127,7 +129,8 @@ def task5(model, train_ds, val_ds):
 
 if __name__ == '__main__':
     import_model = task2()
-    model = task3(import_model).summary()
+    model = task3(import_model)
+    model.summary()
     # train_ds, val_ds = task4()
     # task5(model, train_ds, val_ds)
     
