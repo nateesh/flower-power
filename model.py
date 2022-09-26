@@ -5,22 +5,23 @@ from tensorflow.keras import layers, Model, Sequential
 from tensorflow.keras.layers import Dense
 
 # ------
-# Task 1  Download the small flower dataset from Blackboard.
+# Task 1 - Download the small flower dataset from Blackboard.
 # ------
 
 def task1():
-    
-       
+
+
+
     pass
 
 
 # ------
-# Task 2 Using the tf.keras.applications module download a pretrained MobileNetV2 network.
+# Task 2 - Using the tf.keras.applications module download a pretrained MobileNetV2 network.
 # ------
 
 def task2():
     import_model = MobileNetV2(
-        input_shape=(150, 150, 3),
+        input_shape=(256, 256, 3),
         alpha=1.0, include_top=False, weights="imagenet",
         input_tensor=None, pooling=None,
         classifier_activation="softmax", #**kwargs
@@ -29,23 +30,25 @@ def task2():
     return import_model
 
 # ------
-# Task 3 Replace the last layer of the downloaded neural network with a Dense layer of the
+# Task 3 - Replace the last layer of the downloaded neural network with a Dense layer of the
 # appropriate shape for the 5 classes of the small flower dataset {(x1,t1), (x2,t2),…, (xm,tm)}.
 # ------
 
 def task3(import_model):
     x = import_model.layers[-2].output
-
-    outputs = Dense(5, activation="relu", name="flower_power_output_layer")(x)
-
+    
+    outputs = layers.Dense(5, activation="relu", name="flower_power_output_layer")(x)
+    
     model = Model(inputs = import_model.inputs, outputs = outputs)
     
     return model
 
 # ------
-# Task 4 Prepare your training, validation and test sets for the non-accelerated version of
+# Task 4 - Prepare your training, validation and test sets for the non-accelerated version of
 # transfer learning.
 # ------
+
+## recales example https://keras.io/guides/preprocessing_layers/
 
 def task4():
     
