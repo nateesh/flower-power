@@ -1,8 +1,8 @@
 import numpy as np
 # import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras import layers, Model, Sequential
-from tensorflow.keras.layers import Dense
+from tensorflow.keras import layers, Model, utils, optimizers, losses
+
 
 # ------
 # Task 1 - Download the small flower dataset from Blackboard.
