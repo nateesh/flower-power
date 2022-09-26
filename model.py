@@ -14,12 +14,10 @@ def task1():
 
     pass
 
-
-# ------
-# Task 2 - Using the tf.keras.applications module download a pretrained MobileNetV2 network.
-# ------
-
 def task2():
+    """
+    Task 2 - Using the tf.keras.applications module download a pretrained MobileNetV2 network.
+    """
     import_model = MobileNetV2(
         input_shape=(256, 256, 3),
         alpha=1.0, include_top=False, weights="imagenet",
@@ -29,28 +27,33 @@ def task2():
     import_model.trainable = False
     return import_model
 
-# ------
-# Task 3 - Replace the last layer of the downloaded neural network with a Dense layer of the
-# appropriate shape for the 5 classes of the small flower dataset {(x1,t1), (x2,t2),…, (xm,tm)}.
-# ------
-
 def task3(import_model):
+    """
+    # Task 3 - Replace the last layer of the downloaded neural network with a Dense layer of the
+    # appropriate shape for the 5 classes of the small flower dataset {(x1,t1), (x2,t2),…, (xm,tm)}.
+    """
     x = import_model.layers[-2].output
     
+    ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
     outputs = layers.Dense(5, activation="relu", name="flower_power_output_layer")(x)
+    
+    # model is having trouble compiling in step 5 because of its shape should be (None, 5) not (None, 8, 8, 5):
+    # "flower_power_output_layer (Dense  (None, 8, 8, 5)     6405        ['Conv_1_bn[0][0]']"
+    ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
     
     model = Model(inputs = import_model.inputs, outputs = outputs)
     
     return model
 
-# ------
-# Task 4 - Prepare your training, validation and test sets for the non-accelerated version of
-# transfer learning.
-# ------
+
 
 ## recales example https://keras.io/guides/preprocessing_layers/
 
 def task4():
+    """
+    Task 4 - Prepare your training, validation and test sets for the non-accelerated version of
+    transfer learning.
+    """
     
     # using https://keras.io/examples/vision/image_classification_from_scratch/
     # https://www.tensorflow.org/tutorials/images/classification
@@ -102,8 +105,6 @@ def task4():
 def task5(model, train_ds, val_ds):
     """
     # Task 5 - Compile and train your model with an SGD3 optimizer using the 
-# Task 5 - Compile and train your model with an SGD3 optimizer using the 
-    # Task 5 - Compile and train your model with an SGD3 optimizer using the 
     # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
     """
     
@@ -123,12 +124,11 @@ def task5(model, train_ds, val_ds):
     model.fit(train_ds, epochs=epochs, validation_data=val_ds)
 
 
-# ----- This is what Fred was talking about in the tutorial
-# To rescale an input in the [0, 255] range to be
-# in the [0, 1] range, you would pass scale=1./255.
-# https://keras.io/api/layers/preprocessing_layers/image_preprocessing/rescaling/#rescaling-class
 
 if __name__ == '__main__':
     import_model = task2()
-    model = task3(import_model)
-    model.summary()
+    model = task3(import_model).summary()
+    # train_ds, val_ds = task4()
+    # task5(model, train_ds, val_ds)
+    
+    
