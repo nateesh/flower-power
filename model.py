@@ -99,10 +99,28 @@ def task4():
     return train_ds_rescaled, val_ds
 
 
-# ------
+def task5(model, train_ds, val_ds):
+    """
+    # Task 5 - Compile and train your model with an SGD3 optimizer using the 
 # Task 5 - Compile and train your model with an SGD3 optimizer using the 
-# following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
-# ------
+    # Task 5 - Compile and train your model with an SGD3 optimizer using the 
+    # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
+    """
+    
+    # "use buffered prefetching so we can yield data 
+    # from disk without having I/O becoming blocking"    
+    
+    train_ds = train_ds.prefetch(buffer_size=32)
+    val_ds = val_ds.prefetch(buffer_size=32)
+    
+    epochs = 50
+    
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
+        loss="categorical_crossentropy",
+    )
+    
+    model.fit(train_ds, epochs=epochs, validation_data=val_ds)
 
 
 # ----- This is what Fred was talking about in the tutorial
