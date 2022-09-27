@@ -120,8 +120,16 @@ def task5(model, train_ds, val_ds):
     )
     
     model.fit(train_ds, epochs=epochs, validation_data=val_ds)
+    
+    score = model.evaluate(val_ds, verbose=0)
+    print("Test loss:", score[0])
+    print("Test accuracy:", score[1])
 
-
+def task6():
+    """
+    Plot the training and validation errors vs time as well as the training and validation
+    accuracies.
+    """
 
 if __name__ == '__main__':
     import_model = task2()
