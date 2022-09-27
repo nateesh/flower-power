@@ -35,10 +35,11 @@ def task3(import_model):
     x = import_model.layers[-2].output
     
     ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
-    outputs = layers.Dense(5, activation="relu", name="flower_power_output_layer")(x)
-    
-    # model is having trouble compiling in step 5 because of its shape should be (None, 5) not (None, 8, 8, 5):
-    # "flower_power_output_layer (Dense  (None, 8, 8, 5)     6405        ['Conv_1_bn[0][0]']"
+    flattened = layers.Flatten()(x)
+    # model is having trouble compiling in step 5 because of its shape should be (None, 5) not (None, 8, 8, 5)
+    # "flower_power_output_layer (Dense)  (None, 8, 8, 5)     6405        ['Conv_1_bn[0][0]']"
+    # I added a flatten layer and you can see the results in a model.summary()
+    outputs = layers.Dense(5, activation="relu", name="flower_power_output_layer")(flattened)
     ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
     
     model = Model(inputs = import_model.inputs, outputs = outputs)
@@ -120,7 +121,7 @@ def task5(model, train_ds, val_ds):
     
     model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
-        loss="categorical_crossentropy",
+        loss="binary_crossentropy",
     )
     
     model.fit(train_ds, epochs=epochs, validation_data=val_ds)
@@ -129,9 +130,11 @@ def task5(model, train_ds, val_ds):
 
 if __name__ == '__main__':
     import_model = task2()
+    # import_model.summary()
     model = task3(import_model)
-    model.summary()
-    # train_ds, val_ds = task4()
-    # task5(model, train_ds, val_ds)
+    # model.summary()
+    # print(model.output_shape)
+    train_ds, val_ds = task4()
+    task5(model, train_ds, val_ds)
     
     
