@@ -19,10 +19,10 @@ def task2():
     Task 2 - Using the tf.keras.applications module download a pretrained MobileNetV2 network.
     """
     import_model = MobileNetV2(
-        input_shape=(256, 256, 3),
-        alpha=1.0, include_top=False, weights="imagenet",
+        input_shape=(224, 224, 3),
+        alpha=1.0, include_top=True, weights="imagenet",
         input_tensor=None, pooling=None,
-        classifier_activation="softmax", #**kwargs
+        classifier_activation="softmax"
         )
     import_model.trainable = False
     return import_model
@@ -34,13 +34,7 @@ def task3(import_model):
     """
     x = import_model.layers[-2].output
     
-    ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
-    flattened = layers.Flatten()(x)
-    # model is having trouble compiling in step 5 because of its shape should be (None, 5) not (None, 8, 8, 5)
-    # "flower_power_output_layer (Dense)  (None, 8, 8, 5)     6405        ['Conv_1_bn[0][0]']"
-    # I added a flatten layer and you can see the results in a model.summary()
-    outputs = layers.Dense(5, activation="relu", name="flower_power_output_layer")(flattened)
-    ## ---- !!!! ---- !!!! ---- !!!! ---- !!!! ---- !!!!
+    outputs = layers.Dense(5, activation="softmax", name="flower_power_output_layer")(x)
     
     model = Model(inputs = import_model.inputs, outputs = outputs)
     
@@ -59,7 +53,7 @@ def task4():
     # using https://keras.io/examples/vision/image_classification_from_scratch/
     # https://www.tensorflow.org/tutorials/images/classification
     
-    IMAGE_SIZE = (256, 256)
+    IMAGE_SIZE = (224, 224)
     directory_path = "flower_dataset/small_flower_dataset"
     
     train_ds = utils.image_dataset_from_directory(
@@ -121,7 +115,8 @@ def task5(model, train_ds, val_ds):
     
     model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
-        loss="binary_crossentropy",
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"]
     )
     
     model.fit(train_ds, epochs=epochs, validation_data=val_ds)
@@ -132,9 +127,10 @@ if __name__ == '__main__':
     import_model = task2()
     # import_model.summary()
     model = task3(import_model)
-    # model.summary()
+    model.summary()
     # print(model.output_shape)
     train_ds, val_ds = task4()
+    # print(val_ds.class_names)
     task5(model, train_ds, val_ds)
     
     
