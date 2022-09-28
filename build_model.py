@@ -15,8 +15,7 @@ import matplotlib.pyplot as plt
 IMG_SIZE = (224, 224)
 IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
 flowers_dir = 'small_flower_dataset/'
-
-
+EPOCHS = 20
 
 
 def task_1():
@@ -31,13 +30,17 @@ def task_2():
     Input: None
     Output: a freeze base model
     """
-    base_model = MobileNetV2(
-        input_shape=(224, 224, 3),
-        alpha=1.0, include_top=True, weights="imagenet",
-        input_tensor=None, pooling=None,
-        classifier_activation="softmax"
-        )
-    base_model.trainable = False
+    # base_model = MobileNetV2(
+    #     input_shape=(224, 224, 3),
+    #     alpha=1.0, include_top=True, weights="imagenet",
+    #     input_tensor=None, pooling=None,
+    #     classifier_activation="softmax"
+    #     )
+    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights="imagenet")
+    
+    # Freeze layer exclude new layer
+    for layer in base_model.layers:
+        layer.trainable=False
     return base_model
 
 def task_3(base_model):
@@ -47,10 +50,15 @@ def task_3(base_model):
     Input: a freeze base model
     Output: a model with new layer on top
     """
-    flower_output = base_model.layers[-2].output
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(5, activation='softmax')(x)
+    #flower_output = base_model.layers[-2].output
     
     # A Denset layer of 5 classes
-    outputs = layers.Dense(5, activation="relu", name="flower_power_layer")(flower_output)
+    #outputs = layers.Dense(5, activation="relu", name="flower_power_layer")(flower_output)
     
     model = Model(inputs = base_model.inputs, outputs = outputs)
     
@@ -63,24 +71,35 @@ def task_4():
     """
     batch_size = 32
     train_ds = tf.keras.utils.image_dataset_from_directory(
-                directory = flowers_dir,
-                labels="inferred",
-                label_mode="int",
+                flowers_dir,
+                labels='inferred',
+                label_mode='int',
+                class_names=None,
+                color_mode='rgb',
+                batch_size=batch_size,
+                image_size=IMG_SIZE,
+                shuffle=True,
+                seed=2,
                 validation_split=0.2,
                 subset="training",
-                seed=123,
-                image_size=IMG_SIZE,
-                batch_size=batch_size)
-    
+                interpolation='bilinear',
+                follow_links=False,
+                crop_to_aspect_ratio=False)
     val_ds = tf.keras.utils.image_dataset_from_directory(
-                directory = flowers_dir,
-                labels="inferred",
-                label_mode="int",
+                flowers_dir,
+                labels='inferred',
+                label_mode='int',
+                class_names=None,
+                color_mode='rgb',
+                batch_size=batch_size,
+                image_size=IMG_SIZE,
+                shuffle=True,
+                seed=2,
                 validation_split=0.2,
                 subset="validation",
-                seed=123,
-                image_size=IMG_SIZE,
-                batch_size=batch_size)
+                interpolation='bilinear',
+                follow_links=False,
+                crop_to_aspect_ratio=False)
     class_names = train_ds.class_names
     print(class_names)
 
@@ -104,12 +123,11 @@ def task_5(flower_model, train_ds, val_ds):
     # Task 5 - Compile and train your model with an SGD3 optimizer using the 
     # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
     """
-    epochs = 5
 
     # To freeze a layer, simply set its trainable property to False.
     #  We do this for all layers except the last one, which is our newly created output layer.
-    for layer in flower_model.layers[:-1]:
-        layer.trainable = False
+    # for layer in flower_model.layers[:-1]:
+    #     layer.trainable = False
     
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
@@ -121,14 +139,17 @@ def task_5(flower_model, train_ds, val_ds):
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
-    history = flower_model.fit(train_ds, epochs=epochs, validation_data=val_ds)
+    history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     # end time
     end = time.time()
     print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
     print ("[STATUS] duration: {}".format(end - start))
     
+    return history
 
+
+def task_6(history):
     loss = history.history['loss']
     val_loss = history.history['val_loss']
 
@@ -136,7 +157,7 @@ def task_5(flower_model, train_ds, val_ds):
     val_acc = history.history['val_accuracy']
 
 
-    epochs_range = range(20)
+    epochs_range = range(EPOCHS)
     plt.figure(figsize=(8, 8))
 
 
@@ -162,4 +183,6 @@ if __name__ == '__main__':
     flower_model = task_3(import_model)
     flower_model.summary()
     train_ds, val_ds = task_4()
-    task_5(flower_model, train_ds, val_ds)
+    history = task_5(flower_model, train_ds, val_ds)
+    task_6(history)
+
