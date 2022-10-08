@@ -1,144 +1,188 @@
+import pathlib
+import os
+import datetime
+import time
+
 import numpy as np
 # import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, Model, utils, optimizers, losses
+import tensorflow as tf
+import matplotlib.pyplot as plt
 
 
-# ------
-# Task 1 - Download the small flower dataset from Blackboard.
-# ------
+# model expected shape=(None, 224, 224)
+IMG_SIZE = (224, 224)
+IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
+flowers_dir = 'small_flower_dataset/'
+EPOCHS = 20
 
-def task1():
 
-
-
+def task_1():
+    """
+    Task 1: Download the small flower dataset from Blackboard (DONE)
+    """
     pass
 
-def task2():
+def task_2():
     """
-    Task 2 - Using the tf.keras.applications module download a pretrained MobileNetV2 network.
+    Task 2: Using the tf.keras.applications module download a pretrained MobileNetV2 network.
+    Input: None
+    Output: a freeze base model
     """
-    import_model = MobileNetV2(
-        input_shape=(224, 224, 3),
-        alpha=1.0, include_top=True, weights="imagenet",
-        input_tensor=None, pooling=None,
-        classifier_activation="softmax"
-        )
-    import_model.trainable = False
-    return import_model
+    # base_model = MobileNetV2(
+    #     input_shape=(224, 224, 3),
+    #     alpha=1.0, include_top=True, weights="imagenet",
+    #     input_tensor=None, pooling=None,
+    #     classifier_activation="softmax"
+    #     )
+    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights="imagenet")
+    
+    # Freeze layer exclude new layer
+    for layer in base_model.layers:
+        layer.trainable=False
+    return base_model
 
-def task3(import_model):
+def task_3(base_model):
     """
     # Task 3 - Replace the last layer of the downloaded neural network with a Dense layer of the
     # appropriate shape for the 5 classes of the small flower dataset {(x1,t1), (x2,t2),…, (xm,tm)}.
+    Input: a freeze base model
+    Output: a model with new layer on top
     """
-    x = import_model.layers[-2].output
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(5, activation='softmax')(x)
+    #flower_output = base_model.layers[-2].output
     
-    outputs = layers.Dense(5, activation="softmax", name="flower_power_output_layer")(x)
+    # A Denset layer of 5 classes
+    #outputs = layers.Dense(5, activation="relu", name="flower_power_layer")(flower_output)
     
-    model = Model(inputs = import_model.inputs, outputs = outputs)
+    model = Model(inputs = base_model.inputs, outputs = outputs)
     
     return model
 
-
-
-## recales example https://keras.io/guides/preprocessing_layers/
-
-def task4():
+def task_4():
     """
     Task 4 - Prepare your training, validation and test sets for the non-accelerated version of
     transfer learning.
     """
-    
-    # using https://keras.io/examples/vision/image_classification_from_scratch/
-    # https://www.tensorflow.org/tutorials/images/classification
-    
-    IMAGE_SIZE = (224, 224)
-    directory_path = "flower_dataset/small_flower_dataset"
-    
-    train_ds = utils.image_dataset_from_directory(
-        directory=directory_path,
-        labels="inferred",
-        label_mode="int",
-        image_size=IMAGE_SIZE,
-        color_mode="rgb",
-        shuffle=True,
-        seed=2, # same seed for both X and y datasets to avoid overlap, could be any number but must be same
-        validation_split=0.2, # portion (%) reserved for validation
-        subset="training" # portion to be assignment to X_dataset
-        )
-    
-    val_ds = utils.image_dataset_from_directory(
-        directory=directory_path,
-        labels="inferred",
-        label_mode="int",
-        image_size=IMAGE_SIZE,
-        color_mode="rgb",
-        shuffle=True,
-        seed=2,
-        validation_split=0.2,
-        subset="validation"
-        )
-    
-    # ------- Plot sample of images
-    # plt.figure(figsize=(10, 10))
-    # for images, labels in train_ds.take(1):
-    #     for i in range(9):
-    #         ax = plt.subplot(3, 3, i + 1)
-    #         plt.imshow(images[i].numpy().astype("uint8"))
-    #         plt.title(int(labels[i]))
-    #         plt.axis("off")
-    # plt.show()
-    
-    # --- Resacle the training dataset (q: what about test dataset)
-    rescaling_layer = layers.Rescaling(scale=1.0 / 255)
-    train_ds_rescaled = train_ds.map(lambda x, y: (rescaling_layer(x), y))
+    batch_size = 32
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+                flowers_dir,
+                labels='inferred',
+                label_mode='int',
+                class_names=None,
+                color_mode='rgb',
+                batch_size=batch_size,
+                image_size=IMG_SIZE,
+                shuffle=True,
+                seed=2,
+                validation_split=0.2,
+                subset="training",
+                interpolation='bilinear',
+                follow_links=False,
+                crop_to_aspect_ratio=False)
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+                flowers_dir,
+                labels='inferred',
+                label_mode='int',
+                class_names=None,
+                color_mode='rgb',
+                batch_size=batch_size,
+                image_size=IMG_SIZE,
+                shuffle=True,
+                seed=2,
+                validation_split=0.2,
+                subset="validation",
+                interpolation='bilinear',
+                follow_links=False,
+                crop_to_aspect_ratio=False)
+    class_names = train_ds.class_names
+    print(class_names)
 
-    return train_ds_rescaled, val_ds
+    # Configure dataset for performance
+    AUTOTUNE = tf.data.AUTOTUNE
 
+    train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
-def task5(model, train_ds, val_ds):
+    # Standardize the data
+    # The RGB channel values are in the [0, 255] range. 
+    # This is not ideal for a neural network; in general you should seek to make your input values small.
+    normalization_layer = layers.Rescaling(1./255)
+    normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+
+    return normalized_train_ds, normalized_val_ds
+
+def task_5(flower_model, train_ds, val_ds):
     """
     # Task 5 - Compile and train your model with an SGD3 optimizer using the 
     # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
-    
-    https://keras.io/examples/vision/image_classification_from_scratch/
-    
     """
+
+    # To freeze a layer, simply set its trainable property to False.
+    #  We do this for all layers except the last one, which is our newly created output layer.
+    # for layer in flower_model.layers[:-1]:
+    #     layer.trainable = False
     
-    # "use buffered prefetching so we can yield data 
-    # from disk without having I/O becoming blocking"    
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
-    
-    epochs = 50
-    
-    model.compile(
+
+    start = time.time()
+    # Train model
+    flower_model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
-    
-    model.fit(train_ds, epochs=epochs, validation_data=val_ds)
-    
-    score = model.evaluate(val_ds, verbose=0)
-    print("Test loss:", score[0])
-    print("Test accuracy:", score[1])
+    history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
-def task6():
-    """
-    Plot the training and validation errors vs time as well as the training and validation
-    accuracies.
-    """
+    # end time
+    end = time.time()
+    print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    print ("[STATUS] duration: {}".format(end - start))
+    
+    return history
+
+
+def task_6(history):
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+
+
+    epochs_range = range(EPOCHS)
+    plt.figure(figsize=(8, 8))
+
+
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs_range, acc, label='Training Accuracy')
+    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.title('Training and Validation Accuracy')
+
+
+
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs_range, loss, label='Training Loss')
+    plt.plot(epochs_range, val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.title('Training and Validation Loss')
+    plt.show()
 
 if __name__ == '__main__':
-    import_model = task2()
-    # import_model.summary()
-    model = task3(import_model)
-    model.summary()
-    # print(model.output_shape)
-    train_ds, val_ds = task4()
-    # print(val_ds.class_names)
-    task5(model, train_ds, val_ds)
-    
-    
+    import_model = task_2()
+    flower_model = task_3(import_model)
+    flower_model.summary()
+    train_ds, val_ds = task_4()
+    history = task_5(flower_model, train_ds, val_ds)
+    task_6(history)
+
