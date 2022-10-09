@@ -6,7 +6,7 @@ import time
 import numpy as np
 # import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras import layers, Model, utils, optimizers, losses
+from tensorflow.keras import layers, Model, utils, optimizers, losses, models
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -148,7 +148,6 @@ def task_5(flower_model, train_ds, val_ds):
     
     return history
 
-
 def task_6(history):
     loss = history.history['loss']
     val_loss = history.history['val_loss']
@@ -158,7 +157,7 @@ def task_6(history):
 
 
     epochs_range = range(EPOCHS)
-    plt.figure(figsize=(8, 8))
+    # plt.figure(figsize=(8, 8))
 
 
 
@@ -177,12 +176,108 @@ def task_6(history):
     plt.legend(loc='upper right')
     plt.title('Training and Validation Loss')
     plt.show()
+    
+def task_7(flower_model, train_ds, val_ds):
+    
+       
+    train_ds = train_ds.prefetch(buffer_size=32)
+    val_ds = val_ds.prefetch(buffer_size=32)
+    
+    # Duplicate model accross 3 variables for testing multiple learning rates
+    learn_rate_01 = models.clone_model(flower_model)
+    learn_rate_1 = models.clone_model(flower_model)
+    learn_rate_10 = models.clone_model(flower_model)
+    
+    print(f"Compiling {learn_rate_01}")
+    # Train model with 0.1 learning rate
+    learn_rate_01.compile(
+        optimizer=optimizers.SGD(learning_rate=0.1, momentum=0.0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"]
+    )
+    
+    print(f"Compiling {learn_rate_1}")
+    # Train model with 1 learning rate
+    learn_rate_1.compile(
+        optimizer=optimizers.SGD(learning_rate=1, momentum=0.0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"]
+    )
+    
+    print(f"Compiling {learn_rate_10}")
+    # Train model with 10 learning rate
+    learn_rate_10.compile(
+        optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"]
+    )
+    
+    epochs_range = range(EPOCHS)
+        
+    lr_01_history = learn_rate_01.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    lr_1_history = learn_rate_1.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    lr_10_history = learn_rate_10.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+        
+    lr_01_loss = lr_01_history.history['loss']
+    lr_01_val_loss = lr_01_history.history['val_loss']
+    lr_01_acc = lr_01_history.history['accuracy']
+    lr_01_val_acc = lr_01_history.history['val_accuracy']
+
+    lr_1_loss = lr_1_history.history['loss']
+    lr_1_val_loss = lr_1_history.history['val_loss']
+    lr_1_acc = lr_1_history.history['accuracy']
+    lr_1_val_acc = lr_1_history.history['val_accuracy']
+
+    lr_10_loss = lr_10_history.history['loss']
+    lr_10_val_loss = lr_10_history.history['val_loss']
+    lr_10_acc = lr_10_history.history['accuracy']
+    lr_10_val_acc = lr_10_history.history['val_accuracy']
+   
+    
+    plt.subplot(2, 3, 1)
+    plt.plot(epochs_range, lr_01_acc, label='Training Accuracy')
+    plt.plot(epochs_range, lr_01_val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.title('Learning Rate 0.1')
+    
+    plt.subplot(2, 3, 2)
+    plt.plot(epochs_range, lr_1_acc, label='Training Accuracy')
+    plt.plot(epochs_range, lr_1_val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.title('Learning Rate 1')
+    
+    plt.subplot(2, 3, 3)
+    plt.plot(epochs_range, lr_10_acc, label='Training Accuracy')
+    plt.plot(epochs_range, lr_10_val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.title('Learning Rate 10')
+    
+    plt.subplot(2, 3, 4)
+    plt.plot(epochs_range, lr_01_val_loss, label='Training Loss')
+    plt.plot(epochs_range, lr_01_val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.title('')
+    
+    plt.subplot(2, 3, 5)
+    plt.plot(epochs_range, lr_1_val_loss, label='Training Loss')
+    plt.plot(epochs_range, lr_1_val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.title('')
+    
+    plt.subplot(2, 3, 6)
+    plt.plot(epochs_range, lr_10_loss, label='Training Loss')
+    plt.plot(epochs_range, lr_10_val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.title('')
+    
+    plt.show()
 
 if __name__ == '__main__':
     import_model = task_2()
     flower_model = task_3(import_model)
-    flower_model.summary()
+    # flower_model.summary()
     train_ds, val_ds = task_4()
-    history = task_5(flower_model, train_ds, val_ds)
-    task_6(history)
+    # history = task_5(flower_model, train_ds, val_ds)
+    # task_6(history)
+    task_7(flower_model, train_ds, val_ds)
 
