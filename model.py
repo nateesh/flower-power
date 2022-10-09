@@ -183,92 +183,93 @@ def task_7(flower_model, train_ds, val_ds):
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
     
+    # Establish learning rates to test
+    lr_1 = 0.001
+    lr_2 = 0.1
+    lr_3 = 1
+    
     # Duplicate model accross 3 variables for testing multiple learning rates
-    learn_rate_01 = models.clone_model(flower_model)
     learn_rate_1 = models.clone_model(flower_model)
-    learn_rate_10 = models.clone_model(flower_model)
+    learn_rate_2 = models.clone_model(flower_model)
+    learn_rate_3 = models.clone_model(flower_model)
     
-    print(f"Compiling {learn_rate_01}")
     # Train model with 0.1 learning rate
-    learn_rate_01.compile(
-        optimizer=optimizers.SGD(learning_rate=0.1, momentum=0.0, nesterov=False),
-        loss=losses.SparseCategoricalCrossentropy(),
-        metrics=["accuracy"]
-    )
-    
-    print(f"Compiling {learn_rate_1}")
-    # Train model with 1 learning rate
     learn_rate_1.compile(
-        optimizer=optimizers.SGD(learning_rate=1, momentum=0.0, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=lr_1, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
-        metrics=["accuracy"]
-    )
+        metrics=["accuracy"])
     
-    print(f"Compiling {learn_rate_10}")
-    # Train model with 10 learning rate
-    learn_rate_10.compile(
-        optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.0, nesterov=False),
+    # Train model with 1 learning rate
+    learn_rate_2.compile(
+        optimizer=optimizers.SGD(learning_rate=lr_2, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
-        metrics=["accuracy"]
-    )
+        metrics=["accuracy"])
+    
+    # Train model with 10 learning rate
+    learn_rate_3.compile(
+        optimizer=optimizers.SGD(learning_rate=lr_3, momentum=0.0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
     
     epochs_range = range(EPOCHS)
         
-    lr_01_history = learn_rate_01.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
     lr_1_history = learn_rate_1.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
-    lr_10_history = learn_rate_10.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
-        
-    lr_01_loss = lr_01_history.history['loss']
-    lr_01_val_loss = lr_01_history.history['val_loss']
-    lr_01_acc = lr_01_history.history['accuracy']
-    lr_01_val_acc = lr_01_history.history['val_accuracy']
-
+    lr_2_history = learn_rate_2.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    lr_3_history = learn_rate_3.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    
+    # Declare plotting variables for each test case    
     lr_1_loss = lr_1_history.history['loss']
     lr_1_val_loss = lr_1_history.history['val_loss']
     lr_1_acc = lr_1_history.history['accuracy']
     lr_1_val_acc = lr_1_history.history['val_accuracy']
 
-    lr_10_loss = lr_10_history.history['loss']
-    lr_10_val_loss = lr_10_history.history['val_loss']
-    lr_10_acc = lr_10_history.history['accuracy']
-    lr_10_val_acc = lr_10_history.history['val_accuracy']
+    lr_2_loss = lr_2_history.history['loss']
+    lr_2_val_loss = lr_2_history.history['val_loss']
+    lr_2_acc = lr_2_history.history['accuracy']
+    lr_2_val_acc = lr_2_history.history['val_accuracy']
+
+    lr_3_loss = lr_3_history.history['loss']
+    lr_3_val_loss = lr_3_history.history['val_loss']
+    lr_3_acc = lr_3_history.history['accuracy']
+    lr_3_val_acc = lr_3_history.history['val_accuracy']
    
-    
+    plt.figure(figsize=(8, 8))
     plt.subplot(2, 3, 1)
-    plt.plot(epochs_range, lr_01_acc, label='Training Accuracy')
-    plt.plot(epochs_range, lr_01_val_acc, label='Validation Accuracy')
+    plt.plot(epochs_range, lr_1_acc, label='Training')
+    plt.plot(epochs_range, lr_1_val_acc, label='Validation')
     plt.legend(loc='lower right')
-    plt.title('Learning Rate 0.1')
+    plt.title(f'Learning Rate {lr_1}')
+    plt.ylabel(f'Accuracy')
     
     plt.subplot(2, 3, 2)
-    plt.plot(epochs_range, lr_1_acc, label='Training Accuracy')
-    plt.plot(epochs_range, lr_1_val_acc, label='Validation Accuracy')
-    plt.legend(loc='lower right')
-    plt.title('Learning Rate 1')
+    plt.plot(epochs_range, lr_2_acc, label='')
+    plt.plot(epochs_range, lr_2_val_acc, label='')
+    # plt.legend(loc='lower right')
+    plt.title(f'Learning Rate {lr_2}')
     
     plt.subplot(2, 3, 3)
-    plt.plot(epochs_range, lr_10_acc, label='Training Accuracy')
-    plt.plot(epochs_range, lr_10_val_acc, label='Validation Accuracy')
-    plt.legend(loc='lower right')
-    plt.title('Learning Rate 10')
+    plt.plot(epochs_range, lr_3_acc, label='')
+    plt.plot(epochs_range, lr_3_val_acc, label='')
+    # plt.legend(loc='lower right')
+    plt.title(f'Learning Rate {lr_3}')
     
     plt.subplot(2, 3, 4)
-    plt.plot(epochs_range, lr_01_val_loss, label='Training Loss')
-    plt.plot(epochs_range, lr_01_val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.title('')
+    plt.plot(epochs_range, lr_1_loss, label='Training')
+    plt.plot(epochs_range, lr_1_val_loss, label='Validation')
+    # plt.legend(loc='upper right')
+    plt.ylabel(f'Loss')
     
     plt.subplot(2, 3, 5)
-    plt.plot(epochs_range, lr_1_val_loss, label='Training Loss')
-    plt.plot(epochs_range, lr_1_val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.title('')
+    plt.plot(epochs_range, lr_2_loss, label='')
+    plt.plot(epochs_range, lr_2_val_loss, label='')
+    # plt.legend(loc='upper right')
+    # plt.title(f'Loss')
     
     plt.subplot(2, 3, 6)
-    plt.plot(epochs_range, lr_10_loss, label='Training Loss')
-    plt.plot(epochs_range, lr_10_val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.title('')
+    plt.plot(epochs_range, lr_3_loss, label='')
+    plt.plot(epochs_range, lr_3_val_loss, label='')
+    # plt.legend(loc='upper right')
+    # plt.title(f'Loss')
     
     plt.show()
 
