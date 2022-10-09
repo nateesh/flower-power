@@ -134,12 +134,15 @@ def task_5(flower_model, train_ds, val_ds):
 
     start = time.time()
     # Train model
-    flower_model.compile(
+    
+    model = models.clone_model(flower_model)
+    
+    model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
-    history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     # end time
     end = time.time()
@@ -273,12 +276,15 @@ def task_7(flower_model, train_ds, val_ds):
     
     plt.show()
 
-if __name__ == '__main__':
+def task_8():
+    None
+
+if __name__ == '__main__':   
     import_model = task_2()
     flower_model = task_3(import_model)
     # flower_model.summary()
     train_ds, val_ds = task_4()
-    # history = task_5(flower_model, train_ds, val_ds)
-    # task_6(history)
+    history = task_5(flower_model, train_ds, val_ds)
+    task_6(history)
     task_7(flower_model, train_ds, val_ds)
 
