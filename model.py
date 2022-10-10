@@ -180,7 +180,7 @@ def task_6(history):
     plt.title('Training and Validation Loss')
     plt.show()
     
-def task_7(flower_model, train_ds, val_ds):
+def task_7(import_model, train_ds, val_ds):
     
        
     train_ds = train_ds.prefetch(buffer_size=32)
@@ -192,9 +192,9 @@ def task_7(flower_model, train_ds, val_ds):
     lr_3 = 1
     
     # Duplicate model accross 3 variables for testing multiple learning rates
-    learn_rate_1 = models.clone_model(flower_model)
-    learn_rate_2 = models.clone_model(flower_model)
-    learn_rate_3 = models.clone_model(flower_model)
+    learn_rate_1 = task_3(import_model)
+    learn_rate_2 = task_3(import_model)
+    learn_rate_3 = task_3(import_model)
     
     # Train model with 0.1 learning rate
     learn_rate_1.compile(
@@ -241,39 +241,34 @@ def task_7(flower_model, train_ds, val_ds):
     plt.plot(epochs_range, lr_1_acc, label='Training')
     plt.plot(epochs_range, lr_1_val_acc, label='Validation')
     plt.legend(loc='lower right')
-    plt.title(f'Learning Rate {lr_1}')
+    plt.title(f'Learning Rate = {lr_1}')
     plt.ylabel(f'Accuracy')
     
     plt.subplot(2, 3, 2)
-    plt.plot(epochs_range, lr_2_acc, label='')
-    plt.plot(epochs_range, lr_2_val_acc, label='')
-    # plt.legend(loc='lower right')
-    plt.title(f'Learning Rate {lr_2}')
+    plt.plot(epochs_range, lr_2_acc, label='Training')
+    plt.plot(epochs_range, lr_2_val_acc, label='Validation')
+    plt.title(f'Learning Rate = {lr_2}')
     
     plt.subplot(2, 3, 3)
-    plt.plot(epochs_range, lr_3_acc, label='')
-    plt.plot(epochs_range, lr_3_val_acc, label='')
-    # plt.legend(loc='lower right')
-    plt.title(f'Learning Rate {lr_3}')
+    plt.plot(epochs_range, lr_3_acc, label='Training')
+    plt.plot(epochs_range, lr_3_val_acc, label='Validation')
+    plt.title(f'Learning Rate = {lr_3}')
     
     plt.subplot(2, 3, 4)
     plt.plot(epochs_range, lr_1_loss, label='Training')
     plt.plot(epochs_range, lr_1_val_loss, label='Validation')
-    # plt.legend(loc='upper right')
     plt.ylabel(f'Loss')
     
     plt.subplot(2, 3, 5)
-    plt.plot(epochs_range, lr_2_loss, label='')
-    plt.plot(epochs_range, lr_2_val_loss, label='')
-    # plt.legend(loc='upper right')
-    # plt.title(f'Loss')
+    plt.plot(epochs_range, lr_2_loss, label='Training')
+    plt.plot(epochs_range, lr_2_val_loss, label='Validation')
     
     plt.subplot(2, 3, 6)
-    plt.plot(epochs_range, lr_3_loss, label='')
-    plt.plot(epochs_range, lr_3_val_loss, label='')
-    # plt.legend(loc='upper right')
-    # plt.title(f'Loss')
+    plt.plot(epochs_range, lr_3_loss, label='Training')
+    plt.plot(epochs_range, lr_3_val_loss, label='Validation')
     
+    plt.show()
+
     plt.show()
 
 def task_8():
