@@ -269,17 +269,57 @@ def task_7(import_model, train_ds, val_ds):
     
     plt.show()
 
-    plt.show()
+def task_8(import_model, train_ds, val_ds):
+    
+    LEARNING_RATE = 0.01
+    MOMENTUM = 1
+    
+    train_ds = train_ds.prefetch(buffer_size=32)
+    val_ds = val_ds.prefetch(buffer_size=32)
+    
+    model = task_3(import_model)
+    
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+    
+    history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
-def task_8():
-    None
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+
+
+    epochs_range = range(EPOCHS)
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs_range, acc, label='Training Accuracy')
+    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.ylabel(f'Accuracy')
+    plt.title('Training and Validation Accuracy')
+
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs_range, loss, label='Training Loss')
+    plt.plot(epochs_range, val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.ylabel(f'Loss')
+    plt.title('Training and Validation Loss')
+    plt.show()
+    
+    
 
 if __name__ == '__main__':   
     import_model = task_2()
     flower_model = task_3(import_model)
     # flower_model.summary()
     train_ds, val_ds = task_4()
-    history = task_5(flower_model, train_ds, val_ds)
-    task_6(history)
-    task_7(flower_model, train_ds, val_ds)
+    # history = task_5(flower_model, train_ds, val_ds)
+    # task_6(history)
+    # task_7(import_model, train_ds, val_ds)
+    task_8(import_model, train_ds, val_ds)
 
