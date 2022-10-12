@@ -281,45 +281,80 @@ def task_7(import_model, train_ds, val_ds):
     plt.show()
 
 def task_8(import_model, train_ds, val_ds):
+    """Add header comment and inline comments as well"""
+
     
-    LEARNING_RATE = 0.01
-    MOMENTUM = 1
+    LEARNING_RATE = 0.1
+    MOMENTUM = 0.5
     
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
     
     model = task_3(import_model)
-    
+    m_model = task_3(import_model)
+        
     model.compile(
-        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
     
     history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    
+    
+    m_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+        
+    m_history = m_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     loss = history.history['loss']
     val_loss = history.history['val_loss']
-
     acc = history.history['accuracy']
     val_acc = history.history['val_accuracy']
 
+    m_loss = m_history.history['loss']
+    m_val_loss = m_history.history['val_loss']
+    m_acc = m_history.history['accuracy']
+    m_val_acc = m_history.history['val_accuracy']
 
+    accuracies = [acc, val_acc, m_acc, m_val_acc]
+    losses = [loss, val_loss, m_loss, m_val_loss]
+    
+    acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
+    acc_y_axis_min = min(flatten_list(accuracies)) - 0.1
+    loss_y_axis_max = max(flatten_list(losses)) + 0.1
+    loss_y_axis_min = min(flatten_list(losses)) - 0.1
+    
     epochs_range = range(EPOCHS)
 
     plt.figure(figsize=(8, 8))
-    plt.subplot(1, 2, 1)
+    plt.subplot(2, 2, 1)
+    plt.plot(epochs_range, m_acc, label='Training')
+    plt.plot(epochs_range, m_val_acc, label='Validation')
+    plt.legend(loc='lower right')
+    plt.ylabel('Accuracy', fontsize=12)
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM}')
+
+    plt.subplot(2, 2, 2)
     plt.plot(epochs_range, acc, label='Training Accuracy')
     plt.plot(epochs_range, val_acc, label='Validation Accuracy')
-    plt.legend(loc='lower right')
-    plt.ylabel(f'Accuracy')
-    plt.title('Training and Validation Accuracy')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = 0')
 
-    plt.subplot(1, 2, 2)
+    plt.subplot(2, 2, 3)
+    plt.plot(epochs_range, m_loss, label='Training Loss')
+    plt.plot(epochs_range, m_val_loss, label='Validation Loss')
+    plt.ylabel(f'Loss', fontsize=12)
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+ 
+    plt.subplot(2, 2, 4)
     plt.plot(epochs_range, loss, label='Training Loss')
     plt.plot(epochs_range, val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.ylabel(f'Loss')
-    plt.title('Training and Validation Loss')
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+    
     plt.show()
     
     
