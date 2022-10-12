@@ -179,6 +179,9 @@ def task_6(history):
     plt.legend(loc='upper right')
     plt.title('Training and Validation Loss')
     plt.show()
+
+def flatten_list(l):
+    return [val for sublist in l for val in sublist]
     
 def task_7(import_model, train_ds, val_ds):
     
