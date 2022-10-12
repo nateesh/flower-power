@@ -69,45 +69,61 @@ def task_4():
     Task 4 - Prepare your training, validation and test sets for the non-accelerated version of
     transfer learning.
     """
+    
     batch_size = 32
     train_ds = tf.keras.utils.image_dataset_from_directory(
-                flowers_dir,
-                labels='inferred',
-                label_mode='int',
-                class_names=None,
-                color_mode='rgb',
-                batch_size=batch_size,
-                image_size=IMG_SIZE,
-                shuffle=True,
-                seed=2,
-                validation_split=0.2,
-                subset="training",
-                interpolation='bilinear',
-                follow_links=False,
-                crop_to_aspect_ratio=False)
+                    flowers_dir,
+                    labels='inferred',
+                    label_mode='int',
+                    class_names=None,
+                    color_mode='rgb',
+                    batch_size=batch_size,
+                    image_size=IMG_SIZE,
+                    shuffle=True,
+                    seed=2,
+                    validation_split=0.3, # get 700 dataset
+                    subset="training",
+                    interpolation='bilinear',
+                    follow_links=False,
+                    crop_to_aspect_ratio=False)
     val_ds = tf.keras.utils.image_dataset_from_directory(
-                flowers_dir,
-                labels='inferred',
-                label_mode='int',
-                class_names=None,
-                color_mode='rgb',
-                batch_size=batch_size,
-                image_size=IMG_SIZE,
-                shuffle=True,
-                seed=2,
-                validation_split=0.2,
-                subset="validation",
-                interpolation='bilinear',
-                follow_links=False,
-                crop_to_aspect_ratio=False)
-    class_names = train_ds.class_names
-    print(class_names)
+                    flowers_dir,
+                    labels='inferred',
+                    label_mode='int',
+                    class_names=None,
+                    color_mode='rgb',
+                    batch_size=batch_size,
+                    image_size=IMG_SIZE,
+                    shuffle=True,
+                    seed=2,
+                    validation_split=0.15, # get 150 dataset
+                    subset="validation",
+                    interpolation='bilinear',
+                    follow_links=False,
+                    crop_to_aspect_ratio=False)
+    testing_ds = tf.keras.utils.image_dataset_from_directory(
+                    flowers_dir,
+                    labels='inferred',
+                    label_mode='int',
+                    class_names=None,
+                    color_mode='rgb',
+                    batch_size=batch_size,
+                    image_size=IMG_SIZE,
+                    shuffle=True,
+                    seed=2,
+                    validation_split=0.15, # get 150 dataset
+                    subset="validation",
+                    interpolation='bilinear',
+                    follow_links=False,
+                    crop_to_aspect_ratio=False)
+    #class_names = train_ds.class_names
 
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
 
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    testing_ds = testing_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
     # Standardize the data
     # The RGB channel values are in the [0, 255] range. 
@@ -115,10 +131,15 @@ def task_4():
     normalization_layer = layers.Rescaling(1./255)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_testing_ds = testing_ds.map(lambda x, y: (normalization_layer(x), y))
 
-    return normalized_train_ds, normalized_val_ds
+    # train_ds = normalized_train_ds
+    # val_ds = normalized_val_ds
+    # testing_ds = normalized_testing_ds
 
-def task_5(flower_model, train_ds, val_ds):
+    return normalized_train_ds, normalized_val_ds, normalized_testing_ds
+
+def task_5(flower_model, train_ds, val_ds, test_ds):
     """
     # Task 5 - Compile and train your model with an SGD3 optimizer using the 
     # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
@@ -145,6 +166,9 @@ def task_5(flower_model, train_ds, val_ds):
     end = time.time()
     print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
     print ("[STATUS] duration: {}".format(end - start))
+
+    # evaluate result by test dataset
+    flower_model.evaluate(test_ds)
     
     return history
 
@@ -182,7 +206,7 @@ if __name__ == '__main__':
     import_model = task_2()
     flower_model = task_3(import_model)
     flower_model.summary()
-    train_ds, val_ds = task_4()
-    history = task_5(flower_model, train_ds, val_ds)
+    train_ds, val_ds, test_ds = task_4()
+    history = task_5(flower_model, train_ds, val_ds, test_ds)
     task_6(history)
 
