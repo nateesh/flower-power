@@ -184,7 +184,7 @@ def flatten_list(l):
     return [val for sublist in l for val in sublist]
     
 def task_7(import_model, train_ds, val_ds):
-    
+    """Add header comment and inline comments as well"""
        
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
@@ -238,6 +238,11 @@ def task_7(import_model, train_ds, val_ds):
     lr_3_val_loss = lr_3_history.history['val_loss']
     lr_3_acc = lr_3_history.history['accuracy']
     lr_3_val_acc = lr_3_history.history['val_accuracy']
+    
+    accuracies = [lr_1_acc, lr_1_val_acc, lr_2_acc, lr_2_val_acc, lr_3_acc, lr_3_val_acc]
+    
+    acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
+    acc_y_axis_min = min(flatten_list(accuracies)) - 0.1
    
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 3, 1)
@@ -245,22 +250,25 @@ def task_7(import_model, train_ds, val_ds):
     plt.plot(epochs_range, lr_1_val_acc, label='Validation')
     plt.legend(loc='lower right')
     plt.title(f'Learning Rate = {lr_1}')
-    plt.ylabel(f'Accuracy')
+    plt.ylabel(f'Accuracy', fontsize=12)
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
     
     plt.subplot(2, 3, 2)
     plt.plot(epochs_range, lr_2_acc, label='Training')
     plt.plot(epochs_range, lr_2_val_acc, label='Validation')
     plt.title(f'Learning Rate = {lr_2}')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
     
     plt.subplot(2, 3, 3)
     plt.plot(epochs_range, lr_3_acc, label='Training')
     plt.plot(epochs_range, lr_3_val_acc, label='Validation')
     plt.title(f'Learning Rate = {lr_3}')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
     
     plt.subplot(2, 3, 4)
     plt.plot(epochs_range, lr_1_loss, label='Training')
     plt.plot(epochs_range, lr_1_val_loss, label='Validation')
-    plt.ylabel(f'Loss')
+    plt.ylabel(f'Loss', fontsize=12)
     
     plt.subplot(2, 3, 5)
     plt.plot(epochs_range, lr_2_loss, label='Training')
