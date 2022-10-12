@@ -357,15 +357,14 @@ def task_8(import_model, train_ds, val_ds):
     
     plt.show()
     
-    
 
 if __name__ == '__main__':   
     import_model = task_2()
-    flower_model = task_3(import_model)
-    # flower_model.summary()
+    # flower_model = task_3(import_model)
+    # # flower_model.summary()
     train_ds, val_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
-    # task_7(import_model, train_ds, val_ds)
-    task_8(import_model, train_ds, val_ds)
+    task_7(import_model, train_ds, val_ds)
+    # task_8(import_model, train_ds, val_ds)
 
