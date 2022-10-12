@@ -9,6 +9,7 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, Model, utils, optimizers, losses
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from keras.models import load_model
 
 
 # model expected shape=(None, 224, 224)
@@ -150,25 +151,32 @@ def task_5(flower_model, train_ds, val_ds, test_ds):
     # for layer in flower_model.layers[:-1]:
     #     layer.trainable = False
     
-    train_ds = train_ds.prefetch(buffer_size=32)
-    val_ds = val_ds.prefetch(buffer_size=32)
+    # train_ds = train_ds.prefetch(buffer_size=32)
+    # val_ds = val_ds.prefetch(buffer_size=32)
+    # test_ds = test_ds.prefetch(buffer_size=32)
 
-    start = time.time()
-    # Train model
-    flower_model.compile(
-        optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
-        loss=losses.SparseCategoricalCrossentropy(),
-        metrics=["accuracy"]
-    )
-    history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    # start = time.time()
+    # # Train model
+    # flower_model.compile(
+    #     optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
+    #     loss=losses.SparseCategoricalCrossentropy(),
+    #     metrics=["accuracy"]
+    # )
+    # history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
-    # end time
-    end = time.time()
-    print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-    print ("[STATUS] duration: {}".format(end - start))
+    # # end time
+    # end = time.time()
+    # print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    # print ("[STATUS] duration: {}".format(end - start))
 
-    # evaluate result by test dataset
-    flower_model.evaluate(test_ds)
+    # # evaluate result by test dataset
+    # flower_model.evaluate(test_ds)
+
+    # # save model. Preparing for task 9
+    # flower_model.save('flower_model.h5')
+    # print('Model Saved!')
+    
+    train_model(flower_model, train_ds, val_ds, test_ds)
     
     return history
 
@@ -201,6 +209,59 @@ def task_6(history):
     plt.legend(loc='upper right')
     plt.title('Training and Validation Loss')
     plt.show()
+
+def task_7():
+    """
+    Task 7: Reference from Nathan branch
+    """
+    pass
+
+def task_8():
+    """
+    Task 8: Reference from Nathan branch
+    """
+    pass
+
+def train_model(model, train_ds, val_ds, test_ds, lr=0.01, momentum=0.0):
+    train_ds = train_ds.prefetch(buffer_size=32)
+    val_ds = val_ds.prefetch(buffer_size=32)
+    test_ds = test_ds.prefetch(buffer_size=32)
+
+    start = time.time()
+    # Train model
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=lr, momentum=momentum, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"]
+    )
+    history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+
+    # end time
+    end = time.time()
+    print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    print ("[STATUS] duration: {}".format(end - start))
+
+    # evaluate result by test dataset
+    model.evaluate(test_ds)
+
+    # save model. Preparing for reused model
+    flower_model.save('flower_model.h5')
+    print('Model Saved!')
+    return history
+
+def task_9(train_ds, val_ds, test_ds):
+    """
+    Task 9:  Prepare your training, validation and test sets. Those are based on {(F(x1).t1),
+    (F(x2),t2),…,(F(xm),tm)},
+    """
+    # load saving model
+    print('Model Loading!')
+    savedModel=load_model('flower_model.h5')
+    #savedModel.summary()
+
+    train_model(savedModel, train_ds, val_ds, test_ds)
+
+    pass
 
 if __name__ == '__main__':
     import_model = task_2()
