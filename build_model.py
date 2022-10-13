@@ -107,6 +107,7 @@ def task_4():
     val_ds = non_train_ds.skip(3)
     print('Batches for testing -->', testing_ds.cardinality())
     print('Batches for validating -->', val_ds.cardinality())
+    print('Batches for training -->', train_ds.cardinality())
 
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
@@ -235,12 +236,20 @@ def train_model(model, train_ds, val_ds, test_ds, lr=0.01, momentum=0.0):
 
     return history
 
-def task_9(train_ds, val_ds, test_ds):
+def task_9(model,train_ds, val_ds, test_ds):
     """
     Task 9:  Prepare your training, validation and test sets. Those are based on {(F(x1).t1),
     (F(x2),t2),…,(F(xm),tm)},
     """
-    pass
+    
+    new_train_ds = model.predict(train_ds)
+    new_val_ds = model.predict(val_ds)
+    new_test_ds = model.predict(test_ds)
+
+    print(len(new_train_ds))
+    print(len(new_val_ds))
+    print(len(new_test_ds))
+    return new_train_ds, new_val_ds, new_test_ds
 
 if __name__ == '__main__':
     import_model = task_2()
