@@ -87,37 +87,26 @@ def task_4():
                     interpolation='bilinear',
                     follow_links=False,
                     crop_to_aspect_ratio=False)
-    val_ds = tf.keras.utils.image_dataset_from_directory(
-                    flowers_dir,
-                    labels='inferred',
-                    label_mode='int',
-                    class_names=None,
-                    color_mode='rgb',
-                    batch_size=batch_size,
-                    image_size=IMG_SIZE,
-                    shuffle=True,
-                    seed=2,
-                    validation_split=0.15, # get 150 dataset
-                    subset="validation",
-                    interpolation='bilinear',
-                    follow_links=False,
-                    crop_to_aspect_ratio=False)
-    testing_ds = tf.keras.utils.image_dataset_from_directory(
-                    flowers_dir,
-                    labels='inferred',
-                    label_mode='int',
-                    class_names=None,
-                    color_mode='rgb',
-                    batch_size=batch_size,
-                    image_size=IMG_SIZE,
-                    shuffle=True,
-                    seed=2,
-                    validation_split=0.15, # get 150 dataset
-                    subset="validation",
-                    interpolation='bilinear',
-                    follow_links=False,
-                    crop_to_aspect_ratio=False)
-    #class_names = train_ds.class_names
+    non_train_ds = tf.keras.utils.image_dataset_from_directory(
+                flowers_dir,
+                labels='inferred',
+                label_mode='int',
+                class_names=None,
+                color_mode='rgb',
+                batch_size=batch_size,
+                image_size=IMG_SIZE,
+                shuffle=True,
+                seed=2,
+                validation_split=0.2,
+                subset="validation",
+                interpolation='bilinear',
+                follow_links=False,
+                crop_to_aspect_ratio=False)
+
+    testing_ds = non_train_ds.take(3)
+    val_ds = non_train_ds.skip(3)
+    print('Batches for testing -->', testing_ds.cardinality())
+    print('Batches for validating -->', val_ds.cardinality())
 
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
@@ -244,9 +233,6 @@ def train_model(model, train_ds, val_ds, test_ds, lr=0.01, momentum=0.0):
     # evaluate result by test dataset
     model.evaluate(test_ds)
 
-    # save model. Preparing for reused model
-    flower_model.save('flower_model.h5')
-    print('Model Saved!')
     return history
 
 def task_9(train_ds, val_ds, test_ds):
@@ -254,13 +240,6 @@ def task_9(train_ds, val_ds, test_ds):
     Task 9:  Prepare your training, validation and test sets. Those are based on {(F(x1).t1),
     (F(x2),t2),…,(F(xm),tm)},
     """
-    # load saving model
-    print('Model Loading!')
-    savedModel=load_model('flower_model.h5')
-    #savedModel.summary()
-
-    train_model(savedModel, train_ds, val_ds, test_ds)
-
     pass
 
 if __name__ == '__main__':
