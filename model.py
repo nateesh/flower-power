@@ -101,7 +101,9 @@ def task_4():
                 follow_links=False,
                 crop_to_aspect_ratio=False)
     class_names = train_ds.class_names
-    print(class_names)
+    
+    test_ds = val_ds.take(2)
+    val_ds = val_ds.skip(2)
 
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
@@ -115,8 +117,9 @@ def task_4():
     normalization_layer = layers.Rescaling(1./255)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_test_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
 
-    return normalized_train_ds, normalized_val_ds
+    return normalized_train_ds, normalized_val_ds, normalized_test_ds
 
 def task_5(flower_model, train_ds, val_ds):
     """
@@ -239,6 +242,11 @@ def task_7(import_model, train_ds, val_ds):
     lr_3_acc = lr_3_history.history['accuracy']
     lr_3_val_acc = lr_3_history.history['val_accuracy']
     
+    loss_vals = [lr_1_loss, lr_1_val_acc, lr_2_loss, lr_2_val_acc, lr_3_loss, lr_3_val_acc]
+    
+    # loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
+    loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
+    
     accuracies = [lr_1_acc, lr_1_val_acc, lr_2_acc, lr_2_val_acc, lr_3_acc, lr_3_val_acc]
     
     acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
@@ -268,19 +276,22 @@ def task_7(import_model, train_ds, val_ds):
     plt.subplot(2, 3, 4)
     plt.plot(epochs_range, lr_1_loss, label='Training')
     plt.plot(epochs_range, lr_1_val_loss, label='Validation')
+    plt.ylim(loss_y_axis_min, 2)
     plt.ylabel(f'Loss', fontsize=12)
     
     plt.subplot(2, 3, 5)
     plt.plot(epochs_range, lr_2_loss, label='Training')
     plt.plot(epochs_range, lr_2_val_loss, label='Validation')
+    plt.ylim(loss_y_axis_min, 2)
     
     plt.subplot(2, 3, 6)
     plt.plot(epochs_range, lr_3_loss, label='Training')
     plt.plot(epochs_range, lr_3_val_loss, label='Validation')
+    plt.ylim(loss_y_axis_min, 2)
     
     plt.show()
 
-def task_8(import_model, train_ds, val_ds):
+def task_8(import_model, train_ds, val_ds, test_ds):
     """Add header comment and inline comments as well"""
 
     
@@ -318,13 +329,13 @@ def task_8(import_model, train_ds, val_ds):
     m_acc = m_history.history['accuracy']
     m_val_acc = m_history.history['val_accuracy']
 
-    accuracies = [acc, val_acc, m_acc, m_val_acc]
-    losses = [loss, val_loss, m_loss, m_val_loss]
+    acc_vals = [acc, val_acc, m_acc, m_val_acc]
+    loss_vals = [loss, val_loss, m_loss, m_val_loss]
     
-    acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
-    acc_y_axis_min = min(flatten_list(accuracies)) - 0.1
-    loss_y_axis_max = max(flatten_list(losses)) + 0.1
-    loss_y_axis_min = min(flatten_list(losses)) - 0.1
+    acc_y_axis_max = max(flatten_list(acc_vals)) + 0.1
+    acc_y_axis_min = min(flatten_list(acc_vals)) - 0.1
+    loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
+    loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
     
     epochs_range = range(EPOCHS)
 
@@ -357,14 +368,16 @@ def task_8(import_model, train_ds, val_ds):
     
     plt.show()
     
+    print(m_history.evaluate(test_ds))
+    
 
 if __name__ == '__main__':   
     import_model = task_2()
     # flower_model = task_3(import_model)
     # # flower_model.summary()
-    train_ds, val_ds = task_4()
+    train_ds, val_ds, test_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
-    task_7(import_model, train_ds, val_ds)
-    # task_8(import_model, train_ds, val_ds)
+    # task_7(import_model, train_ds, val_ds)
+    task_8(import_model, train_ds, val_ds, test_ds)
 
