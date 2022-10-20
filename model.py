@@ -4,10 +4,9 @@ import datetime
 import time
 
 import numpy as np
-# import tensorflow as tf
+import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, Model, utils, optimizers, losses, models
-import tensorflow as tf
 import matplotlib.pyplot as plt
 
 
@@ -36,7 +35,7 @@ def task_2():
     #     input_tensor=None, pooling=None,
     #     classifier_activation="softmax"
     #     )
-    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights="imagenet")
+    base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3), include_top=True, weights="imagenet")
     
     # Freeze layer exclude new layer
     for layer in base_model.layers:
@@ -50,8 +49,8 @@ def task_3(base_model):
     Input: a freeze base model
     Output: a model with new layer on top
     """
-    x = base_model.output
-    x = layers.GlobalAveragePooling2D()(x)
+    x = base_model.layers[-2].output
+    # x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
     outputs = layers.Dense(5, activation='softmax')(x)
@@ -80,11 +79,12 @@ def task_4():
                 image_size=IMG_SIZE,
                 shuffle=True,
                 seed=2,
-                validation_split=0.2,
+                validation_split=0.3,
                 subset="training",
                 interpolation='bilinear',
                 follow_links=False,
                 crop_to_aspect_ratio=False)
+    
     val_ds = tf.keras.utils.image_dataset_from_directory(
                 flowers_dir,
                 labels='inferred',
@@ -95,15 +95,19 @@ def task_4():
                 image_size=IMG_SIZE,
                 shuffle=True,
                 seed=2,
-                validation_split=0.2,
+                validation_split=0.3,
                 subset="validation",
                 interpolation='bilinear',
                 follow_links=False,
                 crop_to_aspect_ratio=False)
     class_names = train_ds.class_names
     
-    test_ds = val_ds.take(2)
-    val_ds = val_ds.skip(2)
+    test_ds = val_ds.take(5)
+    val_ds = val_ds.skip(5)
+    
+    print(f"Train ds: {len(train_ds)} batches")
+    print(f"Test ds : {len(test_ds)} bacthes")
+    print(f"Val ds: {len(val_ds)} batches")
 
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
@@ -117,7 +121,7 @@ def task_4():
     normalization_layer = layers.Rescaling(1./255)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
-    normalized_test_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_test_ds = test_ds.map(lambda x, y: (normalization_layer(x), y))
 
     return normalized_train_ds, normalized_val_ds, normalized_test_ds
 
@@ -138,13 +142,14 @@ def task_5(flower_model, train_ds, val_ds):
     start = time.time()
     # Train model
     
-    model = models.clone_model(flower_model)
+    model = flower_model
     
     model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
+    
     history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     # end time
@@ -155,6 +160,8 @@ def task_5(flower_model, train_ds, val_ds):
     return history
 
 def task_6(history):
+    print("starting plot")
+    
     loss = history.history['loss']
     val_loss = history.history['val_loss']
 
@@ -168,6 +175,7 @@ def task_6(history):
 
 
     plt.figure(figsize=(8, 8))
+    
     plt.subplot(1, 2, 1)
     plt.plot(epochs_range, acc, label='Training Accuracy')
     plt.plot(epochs_range, val_acc, label='Validation Accuracy')
@@ -181,7 +189,9 @@ def task_6(history):
     plt.plot(epochs_range, val_loss, label='Validation Loss')
     plt.legend(loc='upper right')
     plt.title('Training and Validation Loss')
+    
     plt.show()
+    print("plot finished")
 
 def flatten_list(l):
     return [val for sublist in l for val in sublist]
@@ -367,17 +377,32 @@ def task_8(import_model, train_ds, val_ds, test_ds):
     plt.ylim(loss_y_axis_min, loss_y_axis_max)
     
     plt.show()
+        
+def task_9(base_model, train_ds, val_ds, test_ds):
     
-    print(m_history.evaluate(test_ds))
+    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+    
+    print(len(train_ds))
+    
+    feature_extractor = Model(inputs=base_model.inputs, outputs=base_model.output)
+    feature_extractor.summary()
+    
+    # train_ds_features = feature_extractor.predict(train_ds)
+    val_ds_features = feature_extractor.predict(val_ds)
+
     
 
 if __name__ == '__main__':   
+
     import_model = task_2()
-    # flower_model = task_3(import_model)
-    # # flower_model.summary()
-    train_ds, val_ds, test_ds = task_4()
+    import_model.summary()
+    flower_model = task_3(import_model)
+    flower_model.summary()
+    # train_ds, val_ds, test_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
-    # task_7(import_model, train_ds, val_ds)
-    task_8(import_model, train_ds, val_ds, test_ds)
-
+    # # task_7(import_model, train_ds, val_ds)
+    # task_8(import_model, train_ds, val_ds, test_ds)
+    # # task_9(import_model, train_ds, val_ds, test_ds)
+    
+    
