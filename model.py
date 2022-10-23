@@ -69,6 +69,7 @@ def task_4():
     transfer learning.
     """
     batch_size = 32
+    # Splitting training, validating dataset
     train_ds = tf.keras.utils.image_dataset_from_directory(
                 flowers_dir,
                 labels='inferred',
@@ -117,7 +118,6 @@ def task_4():
 
     # Standardize the data
     # The RGB channel values are in the [0, 255] range. 
-    # This is not ideal for a neural network; in general you should seek to make your input values small.
     normalization_layer = layers.Rescaling(1./255)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
@@ -127,8 +127,11 @@ def task_4():
 
 def task_5(flower_model, train_ds, val_ds):
     """
-    # Task 5 - Compile and train your model with an SGD3 optimizer using the 
-    # following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
+    Task 5 - Compile and train your model with an SGD3 optimizer using the 
+    following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
+    Input: flower model with new layer, training dataset, validation dataset
+    Output: a history object that is a record of training loss values,  
+            validation loss values.
     """
 
     # To freeze a layer, simply set its trainable property to False.
@@ -140,17 +143,17 @@ def task_5(flower_model, train_ds, val_ds):
     val_ds = val_ds.prefetch(buffer_size=32)
 
     start = time.time()
-    # Train model
+    # Train model with lr 0,01, momentum 0
+    #model = flower_model
     
-    model = flower_model
-    
-    model.compile(
+    flower_model.compile(
         optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
     
-    history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    # History object for training loss values, validate values
+    history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     # end time
     end = time.time()
@@ -160,6 +163,13 @@ def task_5(flower_model, train_ds, val_ds):
     return history
 
 def task_6(history):
+    '''
+    Task 6: Plot the training and validation errors vs time as well as the training and validation
+            accuracies.
+    Input: history object (from Model.fit())
+    Output: training model with learning_rate=0.01, momentum=0.0 val_loss, val_accuracy graph
+
+    '''
     print("starting plot")
     
     loss = history.history['loss']
@@ -197,13 +207,19 @@ def flatten_list(l):
     return [val for sublist in l for val in sublist]
     
 def task_7(import_model, train_ds, val_ds):
-    """Add header comment and inline comments as well"""
+    """
+    Task 7: Experiment with 3 different orders of magnitude for the learning rate (0.001, 0.1, 1). Plot the
+            results, draw conclusions.
+    Input: model, trainning and validate dataset
+    Output: plot model result (3 learning rates) on 3 graphs
+
+    """
        
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
     
     # Establish learning rates to test
-    lr_1 = 0.001
+    lr_1 = 0.00001
     lr_2 = 0.1
     lr_3 = 1
     
@@ -302,9 +318,16 @@ def task_7(import_model, train_ds, val_ds):
     plt.show()
 
 def task_8(import_model, train_ds, val_ds, test_ds):
-    """Add header comment and inline comments as well"""
+    """
+    Task 8: Choose the beast learning rate from task 8 and training model with non zero momentum (0.5).
+            For comparing in this task, we trained 2 model with different momentum:
+            model 1: lr = 0.1, momentum = 0.0
+            model 2: lr = 0.1, momentum = 0.5
+    Input: model, trainning dataset, validate dataset, testing dataset
+    Output: graph with different momentum
+    """
 
-    
+    # The best learning rate found in task 7
     LEARNING_RATE = 0.1
     MOMENTUM = 0.5
     
@@ -313,7 +336,8 @@ def task_8(import_model, train_ds, val_ds, test_ds):
     
     model = task_3(import_model)
     m_model = task_3(import_model)
-        
+    
+    # Train 2 models with different momentum 0.0 and 0.5
     model.compile(
         optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
@@ -329,11 +353,13 @@ def task_8(import_model, train_ds, val_ds, test_ds):
         
     m_history = m_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
+    # Prepare plot argument for model lr = 0.1, momentum = 0
     loss = history.history['loss']
     val_loss = history.history['val_loss']
     acc = history.history['accuracy']
     val_acc = history.history['val_accuracy']
 
+    # Prepare plot argument for model lr = 0.1, momentum = 0.5
     m_loss = m_history.history['loss']
     m_val_loss = m_history.history['val_loss']
     m_acc = m_history.history['accuracy']
@@ -349,6 +375,7 @@ def task_8(import_model, train_ds, val_ds, test_ds):
     
     epochs_range = range(EPOCHS)
 
+    # Perform graph for comparing lr = 0.1, momentum = 0 and lr = 0.1, momentum = 0.5
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 2, 1)
     plt.plot(epochs_range, m_acc, label='Training')
@@ -378,31 +405,210 @@ def task_8(import_model, train_ds, val_ds, test_ds):
     
     plt.show()
         
-def task_9(base_model, train_ds, val_ds, test_ds):
-    
-    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-    
-    print(len(train_ds))
-    
-    feature_extractor = Model(inputs=base_model.inputs, outputs=base_model.output)
-    feature_extractor.summary()
-    
-    # train_ds_features = feature_extractor.predict(train_ds)
-    val_ds_features = feature_extractor.predict(val_ds)
+def task_9():
+    '''
+    Task 9: Prepare your training, validation and test sets. Those are based on {(F(x1).t1),
+        (F(x2),t2),…,(F(xm),tm)}
+    Input: model, trainning dataset, validate dataset, testing dataset
+    Output: new training, validation and test sets with accelerated
+    '''
+    # Prepare for training, validating, testing dataset
+    batch_size = 32
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+                    flowers_dir,
+                    labels='inferred',
+                    label_mode='int',
+                    class_names=None,
+                    color_mode='rgb',
+                    batch_size=batch_size,
+                    image_size=IMG_SIZE,
+                    shuffle=True,
+                    seed=2,
+                    validation_split=0.3,
+                    subset="training",
+                    interpolation='bilinear',
+                    follow_links=False,
+                    crop_to_aspect_ratio=False)
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+                    flowers_dir,
+                    labels='inferred',
+                    label_mode='int',
+                    class_names=None,
+                    color_mode='rgb',
+                    batch_size=batch_size,
+                    image_size=IMG_SIZE,
+                    shuffle=True,
+                    seed=2,
+                    validation_split=0.3,
+                    subset="validation",
+                    interpolation='bilinear',
+                    follow_links=False,
+                    crop_to_aspect_ratio=False)
+    class_names = train_ds.class_names
 
+    testing_ds = val_ds.take(5)
+    val_ds = val_ds.skip(5)
+
+    print(f"Train ds length: {len(train_ds)} batches")
+    print(f"Test ds length: {len(testing_ds)} bacthes")
+    print(f"Val length: {len(val_ds)} batches ")
+
+
+    # Configure dataset for performance
+    AUTOTUNE = tf.data.AUTOTUNE
+
+    # train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+    train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    testing_ds = testing_ds.cache().prefetch(buffer_size=AUTOTUNE)
+
+    # Standardize the data
+    # The RGB channel values are in the [0, 255] range. 
+    normalization_layer = layers.Rescaling(1./255)
+    normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+    normalized_testing_ds = testing_ds.map(lambda x, y: (normalization_layer(x), y))
+
+    train_ds = normalized_train_ds
+    val_ds = normalized_val_ds
+    testing_ds = normalized_testing_ds
+
+
+    base_model = MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights="imagenet")
+    # Freeze layer exclude new layer
+    for layer in base_model.layers:
+        layer.trainable=False
+
+    #feature extraction
+    feature_extractor = Model(inputs=base_model.inputs, outputs=base_model.output)
     
+    train_activations = feature_extractor.predict(train_ds)
+    val_activations = feature_extractor.predict(val_ds)
+    test_activations = feature_extractor.predict(testing_ds)
+
+    global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
+    train_x_avg = global_average_layer(train_activations)
+    val_x_avg = global_average_layer(val_activations)
+    test_x_avg = global_average_layer(test_activations)
+
+    # Checking for feature_extractor summary 
+    feature_extractor.summary()
+    # extract the labels from the _ds batches and concatenate them into one array
+    train_labels = np.concatenate([y for x, y in train_ds], axis=0)
+    val_labels = np.concatenate([y for x, y in val_ds], axis=0)
+    test_labels = np.concatenate([y for x, y in testing_ds], axis=0)
+
+    return train_x_avg, train_labels, val_x_avg, val_labels
+
+def task_10(train_x_avg, train_labels, val_x_avg, val_labels):
+    '''
+    Task 10: Perform new training, validation and test sets (task 9) on model with 
+            best learning rate and non-zero momentum.
+            For comparing in this task, we trained 2 model with different momentum:
+            model 1: lr = 0.1, momentum = 0.0
+            model 2: lr = 0.1, momentum = 0.5
+    Input: training, validation and test sets (task 9)
+    '''
+
+    inputs = tf.keras.Input(shape=(1280), name="Extracted Features")
+    x = layers.Dense(256, activation='relu')(inputs)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(5, activation='softmax', name="Classifier")(x)
+
+    model = Model(inputs = inputs, outputs = outputs)
+    m_model = Model(inputs = inputs, outputs = outputs)
+
+    # Perform with the best learning rate and non zero momentum
+    # The best learning rate found in task 7
+    LEARNING_RATE = 0.1
+    MOMENTUM = 0.5
+    
+    # Train 2 models with different momentum 0.0 and 0.5
+    print(f'{LEARNING_RATE} learning rate, 0 momentum model TRAINING')
+    model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+    
+    history = model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
+    
+    
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM} momentum model TRAINING')
+    m_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+        
+    m_history = m_model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
+
+    # Prepare plot argument for model lr = 0.1, momentum = 0
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+
+    # Prepare plot argument for model lr = 0.1, momentum = 0.5
+    m_loss = m_history.history['loss']
+    m_val_loss = m_history.history['val_loss']
+    m_acc = m_history.history['accuracy']
+    m_val_acc = m_history.history['val_accuracy']
+
+    acc_vals = [acc, val_acc, m_acc, m_val_acc]
+    loss_vals = [loss, val_loss, m_loss, m_val_loss]
+    
+    acc_y_axis_max = max(flatten_list(acc_vals)) + 0.1
+    acc_y_axis_min = min(flatten_list(acc_vals)) - 0.1
+    loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
+    loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
+    
+    epochs_range = range(EPOCHS)
+
+    # Perform graph for comparing lr = 0.1, momentum = 0 and lr = 0.1, momentum = 0.5
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 2, 1)
+    plt.plot(epochs_range, m_acc, label='Training')
+    plt.plot(epochs_range, m_val_acc, label='Validation')
+    plt.legend(loc='lower right')
+    plt.ylabel('Accuracy', fontsize=12)
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM}')
+
+    plt.subplot(2, 2, 2)
+    plt.plot(epochs_range, acc, label='Training Accuracy')
+    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = 0')
+
+    plt.subplot(2, 2, 3)
+    plt.plot(epochs_range, m_loss, label='Training Loss')
+    plt.plot(epochs_range, m_val_loss, label='Validation Loss')
+    plt.ylabel(f'Loss', fontsize=12)
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+ 
+    plt.subplot(2, 2, 4)
+    plt.plot(epochs_range, loss, label='Training Loss')
+    plt.plot(epochs_range, val_loss, label='Validation Loss')
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+    
+    plt.show()
+
+
 
 if __name__ == '__main__':   
 
     import_model = task_2()
-    import_model.summary()
-    flower_model = task_3(import_model)
-    flower_model.summary()
-    # train_ds, val_ds, test_ds = task_4()
+    # import_model.summary()
+    # flower_model = task_3(import_model)
+    # flower_model.summary()
+
+    train_ds, val_ds, test_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
-    # # task_7(import_model, train_ds, val_ds)
+    task_7(import_model, train_ds, val_ds)
     # task_8(import_model, train_ds, val_ds, test_ds)
-    # # task_9(import_model, train_ds, val_ds, test_ds)
+
+    #train_x_avg, train_labels, val_x_avg, val_labels = task_9()
+    #task_10(train_x_avg, train_labels, val_x_avg, val_labels)
     
     
