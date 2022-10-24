@@ -4,6 +4,7 @@ import datetime
 import time
 
 import numpy as np
+from paramiko import PasswordRequiredException
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, Model, utils, optimizers, losses, models
@@ -14,7 +15,7 @@ import matplotlib.pyplot as plt
 IMG_SIZE = (224, 224)
 IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
 flowers_dir = 'small_flower_dataset/'
-EPOCHS = 20
+EPOCHS = 30
 
 
 def task_1():
@@ -29,14 +30,9 @@ def task_2():
     Input: None
     Output: a freeze base model
     """
-    # base_model = MobileNetV2(
-    #     input_shape=(224, 224, 3),
-    #     alpha=1.0, include_top=True, weights="imagenet",
-    #     input_tensor=None, pooling=None,
-    #     classifier_activation="softmax"
-    #     )
+    # import MobileNetV2 base model
     base_model = tf.keras.applications.MobileNetV2(input_shape=(224, 224, 3), include_top=True, weights="imagenet")
-    
+
     # Freeze layer exclude new layer
     for layer in base_model.layers:
         layer.trainable=False
@@ -49,18 +45,16 @@ def task_3(base_model):
     Input: a freeze base model
     Output: a model with new layer on top
     """
+
+    # remove the classification layer
     x = base_model.layers[-2].output
-    # x = layers.GlobalAveragePooling2D()(x)
+
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
     outputs = layers.Dense(5, activation='softmax')(x)
-    #flower_output = base_model.layers[-2].output
-    
-    # A Denset layer of 5 classes
-    #outputs = layers.Dense(5, activation="relu", name="flower_power_layer")(flower_output)
-    
+
     model = Model(inputs = base_model.inputs, outputs = outputs)
-    
+
     return model
 
 def task_4():
@@ -69,7 +63,8 @@ def task_4():
     transfer learning.
     """
     batch_size = 32
-    # Splitting training, validating dataset
+
+    # Split training, and no training images into two datasets
     train_ds = tf.keras.utils.image_dataset_from_directory(
                 flowers_dir,
                 labels='inferred',
@@ -85,7 +80,7 @@ def task_4():
                 interpolation='bilinear',
                 follow_links=False,
                 crop_to_aspect_ratio=False)
-    
+
     val_ds = tf.keras.utils.image_dataset_from_directory(
                 flowers_dir,
                 labels='inferred',
@@ -101,11 +96,12 @@ def task_4():
                 interpolation='bilinear',
                 follow_links=False,
                 crop_to_aspect_ratio=False)
-    class_names = train_ds.class_names
-    
+
+    # further split the non-training dataset into two datasets
+    # one for validation, the other for testing
     test_ds = val_ds.take(5)
     val_ds = val_ds.skip(5)
-    
+
     print(f"Train ds: {len(train_ds)} batches")
     print(f"Test ds : {len(test_ds)} bacthes")
     print(f"Val ds: {len(val_ds)} batches")
@@ -113,12 +109,15 @@ def task_4():
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
 
-    train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+    train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    test_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
     # Standardize the data
-    # The RGB channel values are in the [0, 255] range. 
-    normalization_layer = layers.Rescaling(1./255)
+    # The RGB channel values are in the [0, 255] range.
+    # Create a rescaling layer to scale values between -1 and 1, consistent with
+    # the tf.keras.applications.mobilenet_v2.preprocess_input method
+    normalization_layer = layers.Rescaling(scale=1./127.5, offset=-1)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_test_ds = test_ds.map(lambda x, y: (normalization_layer(x), y))
@@ -127,31 +126,31 @@ def task_4():
 
 def task_5(flower_model, train_ds, val_ds):
     """
-    Task 5 - Compile and train your model with an SGD3 optimizer using the 
+    Task 5 - Compile and train your model with an SGD3 optimizer using the
     following parameters learning_rate=0.01, momentum=0.0, nesterov=False.
     Input: flower model with new layer, training dataset, validation dataset
-    Output: a history object that is a record of training loss values,  
+    Output: a history object that is a record of training loss values,
             validation loss values.
     """
 
-    # To freeze a layer, simply set its trainable property to False.
-    #  We do this for all layers except the last one, which is our newly created output layer.
-    # for layer in flower_model.layers[:-1]:
-    #     layer.trainable = False
-    
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
 
     start = time.time()
+
     # Train model with lr 0,01, momentum 0
-    #model = flower_model
-    
+
+    # Declare learning rate constant
+    LR_1 = 0.01
+    MOMENTUM = 0
+
+    #Compile the model
     flower_model.compile(
-        optimizer=optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=LR_1, momentum=MOMENTUM, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
-    
+
     # History object for training loss values, validate values
     history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
@@ -159,7 +158,7 @@ def task_5(flower_model, train_ds, val_ds):
     end = time.time()
     print ("[STATUS] end time - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
     print ("[STATUS] duration: {}".format(end - start))
-    
+
     return history
 
 def task_6(history):
@@ -171,41 +170,42 @@ def task_6(history):
 
     '''
     print("starting plot")
-    
+
+    # Define variables to plot
     loss = history.history['loss']
     val_loss = history.history['val_loss']
 
     acc = history.history['accuracy']
     val_acc = history.history['val_accuracy']
 
-
     epochs_range = range(EPOCHS)
-    # plt.figure(figsize=(8, 8))
 
-
-
+    # plot the model training accuracy and loss over epochs
     plt.figure(figsize=(8, 8))
-    
+
     plt.subplot(1, 2, 1)
     plt.plot(epochs_range, acc, label='Training Accuracy')
     plt.plot(epochs_range, val_acc, label='Validation Accuracy')
     plt.legend(loc='lower right')
     plt.title('Training and Validation Accuracy')
-
-
+    plt.ylim(0.1, 1.1)
 
     plt.subplot(1, 2, 2)
     plt.plot(epochs_range, loss, label='Training Loss')
     plt.plot(epochs_range, val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
     plt.title('Training and Validation Loss')
-    
+    plt.ylim(-0.1, 2)
+
     plt.show()
     print("plot finished")
 
 def flatten_list(l):
+    """ Used to find consistent y axis limits for graph plots.
+    Input: a list of lists
+    Output: a single flattened list
+    """
     return [val for sublist in l for val in sublist]
-    
+
 def task_7(import_model, train_ds, val_ds):
     """
     Task 7: Experiment with 3 different orders of magnitude for the learning rate (0.001, 0.1, 1). Plot the
@@ -214,45 +214,46 @@ def task_7(import_model, train_ds, val_ds):
     Output: plot model result (3 learning rates) on 3 graphs
 
     """
-       
+
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
-    
+
     # Establish learning rates to test
-    lr_1 = 0.00001
-    lr_2 = 0.1
-    lr_3 = 1
-    
+    LR_1 = 0.001
+    LR_2 = 0.1
+    LR_3 = 1
+
     # Duplicate model accross 3 variables for testing multiple learning rates
     learn_rate_1 = task_3(import_model)
     learn_rate_2 = task_3(import_model)
     learn_rate_3 = task_3(import_model)
-    
+
     # Train model with 0.1 learning rate
     learn_rate_1.compile(
-        optimizer=optimizers.SGD(learning_rate=lr_1, momentum=0.0, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=LR_1, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-    
+
     # Train model with 1 learning rate
     learn_rate_2.compile(
-        optimizer=optimizers.SGD(learning_rate=lr_2, momentum=0.0, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=LR_2, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-    
+
     # Train model with 10 learning rate
     learn_rate_3.compile(
-        optimizer=optimizers.SGD(learning_rate=lr_3, momentum=0.0, nesterov=False),
+        optimizer=optimizers.SGD(learning_rate=LR_3, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-    
+
     epochs_range = range(EPOCHS)
-        
+
+    
     lr_1_history = learn_rate_1.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
     lr_2_history = learn_rate_2.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
     lr_3_history = learn_rate_3.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
-    
-    # Declare plotting variables for each test case    
+
+    # Declare plotting variables for each test case
     lr_1_loss = lr_1_history.history['loss']
     lr_1_val_loss = lr_1_history.history['val_loss']
     lr_1_acc = lr_1_history.history['accuracy']
@@ -267,144 +268,210 @@ def task_7(import_model, train_ds, val_ds):
     lr_3_val_loss = lr_3_history.history['val_loss']
     lr_3_acc = lr_3_history.history['accuracy']
     lr_3_val_acc = lr_3_history.history['val_accuracy']
-    
+
+    # find the y axis limits for the plots
     loss_vals = [lr_1_loss, lr_1_val_acc, lr_2_loss, lr_2_val_acc, lr_3_loss, lr_3_val_acc]
-    
-    # loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
     loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
-    
+
     accuracies = [lr_1_acc, lr_1_val_acc, lr_2_acc, lr_2_val_acc, lr_3_acc, lr_3_val_acc]
-    
     acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
     acc_y_axis_min = min(flatten_list(accuracies)) - 0.1
-   
+    
+    # Make the plots
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 3, 1)
     plt.plot(epochs_range, lr_1_acc, label='Training')
     plt.plot(epochs_range, lr_1_val_acc, label='Validation')
     plt.legend(loc='lower right')
-    plt.title(f'Learning Rate = {lr_1}')
+    plt.title(f'Learning Rate = {LR_1}')
     plt.ylabel(f'Accuracy', fontsize=12)
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
-    
+
     plt.subplot(2, 3, 2)
     plt.plot(epochs_range, lr_2_acc, label='Training')
     plt.plot(epochs_range, lr_2_val_acc, label='Validation')
-    plt.title(f'Learning Rate = {lr_2}')
+    plt.title(f'Learning Rate = {LR_2}')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
-    
+
     plt.subplot(2, 3, 3)
     plt.plot(epochs_range, lr_3_acc, label='Training')
     plt.plot(epochs_range, lr_3_val_acc, label='Validation')
-    plt.title(f'Learning Rate = {lr_3}')
+    plt.title(f'Learning Rate = {LR_3}')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
-    
+
     plt.subplot(2, 3, 4)
     plt.plot(epochs_range, lr_1_loss, label='Training')
     plt.plot(epochs_range, lr_1_val_loss, label='Validation')
     plt.ylim(loss_y_axis_min, 2)
     plt.ylabel(f'Loss', fontsize=12)
-    
+
     plt.subplot(2, 3, 5)
     plt.plot(epochs_range, lr_2_loss, label='Training')
     plt.plot(epochs_range, lr_2_val_loss, label='Validation')
     plt.ylim(loss_y_axis_min, 2)
-    
+
     plt.subplot(2, 3, 6)
     plt.plot(epochs_range, lr_3_loss, label='Training')
     plt.plot(epochs_range, lr_3_val_loss, label='Validation')
-    plt.ylim(loss_y_axis_min, 2)
-    
+
     plt.show()
 
 def task_8(import_model, train_ds, val_ds, test_ds):
     """
     Task 8: Choose the beast learning rate from task 8 and training model with non zero momentum (0.5).
             For comparing in this task, we trained 2 model with different momentum:
-            model 1: lr = 0.1, momentum = 0.0
-            model 2: lr = 0.1, momentum = 0.5
+            model 1: lr = 0.01, momentum = 0.0
+            model 2: lr = 0.01, momentum = 0.5
     Input: model, trainning dataset, validate dataset, testing dataset
     Output: graph with different momentum
     """
 
     # The best learning rate found in task 7
-    LEARNING_RATE = 0.1
-    MOMENTUM = 0.5
-    
-    train_ds = train_ds.prefetch(buffer_size=32)
-    val_ds = val_ds.prefetch(buffer_size=32)
-    
-    model = task_3(import_model)
-    m_model = task_3(import_model)
-    
-    # Train 2 models with different momentum 0.0 and 0.5
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=0, nesterov=False),
+    LEARNING_RATE = 0.01
+
+    # Declare 3 non-zero momentums
+    MOMENTUM_0 = 0
+    MOMENTUM_1 = 0.15
+    MOMENTUM_2 = 0.5
+    MOMENTUM_3 = 0.9
+
+    m0_model = task_3(import_model)
+    m1_model = task_3(import_model)
+    m2_model = task_3(import_model)
+    m3_model = task_3(import_model)
+
+    # Train model with momentum = 0 (the previous task_7 selection for learning rate)
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_0} momentum model TRAINING')
+    m0_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
+
+    m0_history = m0_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    m0_eval_results = m0_model.evaluate(test_ds)
     
-    history = model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
-    
-    
-    m_model.compile(
-        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+    # Train 3 models with different momentums
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_1} momentum model TRAINING')
+    m1_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_1, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-        
-    m_history = m_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
-    # Prepare plot argument for model lr = 0.1, momentum = 0
-    loss = history.history['loss']
-    val_loss = history.history['val_loss']
-    acc = history.history['accuracy']
-    val_acc = history.history['val_accuracy']
+    m1_history = m1_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    m1_eval_results = m1_model.evaluate(test_ds)
 
-    # Prepare plot argument for model lr = 0.1, momentum = 0.5
-    m_loss = m_history.history['loss']
-    m_val_loss = m_history.history['val_loss']
-    m_acc = m_history.history['accuracy']
-    m_val_acc = m_history.history['val_accuracy']
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_2} momentum model TRAINING')
+    m2_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_2, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
 
-    acc_vals = [acc, val_acc, m_acc, m_val_acc]
-    loss_vals = [loss, val_loss, m_loss, m_val_loss]
+    m2_history = m2_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    m2_eval_results = m2_model.evaluate(test_ds)
+
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_3} momentum model TRAINING')
+    m3_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_3, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+
+    m3_history = m3_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    m3_eval_results = m3_model.evaluate(test_ds)
+
+    # Prepare plot argument for model lr = 0.1, momentum_0
+    m0_loss = m0_history.history['loss']
+    m0_val_loss = m0_history.history['val_loss']
+    m0_acc = m0_history.history['accuracy']
+    m0_val_acc = m0_history.history['val_accuracy']
     
+    # Prepare plot argument for model lr = 0.1, momentum_1
+    m1_loss = m1_history.history['loss']
+    m1_val_loss = m1_history.history['val_loss']
+    m1_acc = m1_history.history['accuracy']
+    m1_val_acc = m1_history.history['val_accuracy']
+
+    # Prepare plot argument for model lr = 0.1, momentum_2
+    m2_loss = m2_history.history['loss']
+    m2_val_loss = m2_history.history['val_loss']
+    m2_acc = m2_history.history['accuracy']
+    m2_val_acc = m2_history.history['val_accuracy']
+
+    # Prepare plot argument for model lr = 0.1, momentum_3
+    m3_loss = m3_history.history['loss']
+    m3_val_loss = m3_history.history['val_loss']
+    m3_acc = m3_history.history['accuracy']
+    m3_val_acc = m3_history.history['val_accuracy']
+
+    acc_vals = [m0_acc, m0_val_acc, m1_acc, m1_val_acc, m2_acc, m2_val_acc, m3_acc, m3_val_acc]
+    loss_vals =[m0_loss, m0_val_loss, m1_loss, m1_val_loss, m2_loss, m2_val_loss, m3_loss, m3_val_loss]
+
     acc_y_axis_max = max(flatten_list(acc_vals)) + 0.1
     acc_y_axis_min = min(flatten_list(acc_vals)) - 0.1
     loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
     loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
-    
+
     epochs_range = range(EPOCHS)
 
-    # Perform graph for comparing lr = 0.1, momentum = 0 and lr = 0.1, momentum = 0.5
+    # plot the loss and accuracy for different momentums
     plt.figure(figsize=(8, 8))
-    plt.subplot(2, 2, 1)
-    plt.plot(epochs_range, m_acc, label='Training')
-    plt.plot(epochs_range, m_val_acc, label='Validation')
+    plt.subplot(2, 4, 1)
+    plt.plot(epochs_range, m0_acc, label='Training')
+    plt.plot(epochs_range, m0_val_acc, label='Validation')
     plt.legend(loc='lower right')
     plt.ylabel('Accuracy', fontsize=12)
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_0}')
 
-    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM}')
-
-    plt.subplot(2, 2, 2)
-    plt.plot(epochs_range, acc, label='Training Accuracy')
-    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+    plt.subplot(2, 4, 2)
+    plt.plot(epochs_range, m1_acc, label='Training Accuracy')
+    plt.plot(epochs_range, m1_val_acc, label='Validation Accuracy')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
-    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = 0')
-
-    plt.subplot(2, 2, 3)
-    plt.plot(epochs_range, m_loss, label='Training Loss')
-    plt.plot(epochs_range, m_val_loss, label='Validation Loss')
-    plt.ylabel(f'Loss', fontsize=12)
-    plt.ylim(loss_y_axis_min, loss_y_axis_max)
- 
-    plt.subplot(2, 2, 4)
-    plt.plot(epochs_range, loss, label='Training Loss')
-    plt.plot(epochs_range, val_loss, label='Validation Loss')
-    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_1}')
     
+    plt.subplot(2, 4, 3)
+    plt.plot(epochs_range, m2_acc, label='Training Accuracy')
+    plt.plot(epochs_range, m2_val_acc, label='Validation Accuracy')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_2}')
+
+    plt.subplot(2, 4, 4)
+    plt.plot(epochs_range, m3_acc, label='Training Accuracy')
+    plt.plot(epochs_range, m3_val_acc, label='Validation Accuracy')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_3}')
+
+    plt.subplot(2, 4, 5)
+    plt.plot(epochs_range, m0_loss, label='Training Loss')
+    plt.plot(epochs_range, m0_val_loss, label='Validation Loss')
+    plt.ylabel(f'Loss', fontsize=12)
+    plt.xlabel(f"\nTest ds loss: {int(round(m0_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m0_eval_results[1], 2)*100)}%")
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+
+    plt.subplot(2, 4, 6)
+    plt.plot(epochs_range, m1_loss, label='Training Loss')
+    plt.plot(epochs_range, m1_val_loss, label='Validation Loss')
+    plt.ylabel(f'Loss', fontsize=12)
+    plt.xlabel(f"\nTest ds loss: {int(round(m1_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m1_eval_results[1], 2)*100)}%")
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+
+    plt.subplot(2, 4, 7)
+    plt.plot(epochs_range, m2_loss, label='Training Loss')
+    plt.plot(epochs_range, m2_val_loss, label='Validation Loss')
+    plt.xlabel(f"\nTest ds loss: {int(round(m2_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m2_eval_results[1], 2)*100)}%")
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+
+    plt.subplot(2, 4, 8)
+    plt.plot(epochs_range, m3_loss, label='Training Loss')
+    plt.plot(epochs_range, m3_val_loss, label='Validation Loss')
+    plt.xlabel(f"\nTest ds loss: {int(round(m3_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m3_eval_results[1], 2)*100)}%")
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+
     plt.show()
-        
+
 def task_9():
     '''
     Task 9: Prepare your training, validation and test sets. Those are based on {(F(x1).t1),
@@ -412,6 +479,7 @@ def task_9():
     Input: model, trainning dataset, validate dataset, testing dataset
     Output: new training, validation and test sets with accelerated
     '''
+
     # Prepare for training, validating, testing dataset
     batch_size = 32
     train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -444,7 +512,6 @@ def task_9():
                     interpolation='bilinear',
                     follow_links=False,
                     crop_to_aspect_ratio=False)
-    class_names = train_ds.class_names
 
     testing_ds = val_ds.take(5)
     val_ds = val_ds.skip(5)
@@ -457,14 +524,15 @@ def task_9():
     # Configure dataset for performance
     AUTOTUNE = tf.data.AUTOTUNE
 
-    # train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
     train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
     testing_ds = testing_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
     # Standardize the data
-    # The RGB channel values are in the [0, 255] range. 
-    normalization_layer = layers.Rescaling(1./255)
+    # The RGB channel values are in the [0, 255] range.
+    # Create a rescaling layer to scale values between -1 and 1, consistent with
+    # the tf.keras.applications.mobilenet_v2.preprocess_input method
+    normalization_layer = layers.Rescaling(scale=1./127.5, offset=-1)
     normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
     normalized_testing_ds = testing_ds.map(lambda x, y: (normalization_layer(x), y))
@@ -481,7 +549,7 @@ def task_9():
 
     #feature extraction
     feature_extractor = Model(inputs=base_model.inputs, outputs=base_model.output)
-    
+
     train_activations = feature_extractor.predict(train_ds)
     val_activations = feature_extractor.predict(val_ds)
     test_activations = feature_extractor.predict(testing_ds)
@@ -491,22 +559,22 @@ def task_9():
     val_x_avg = global_average_layer(val_activations)
     test_x_avg = global_average_layer(test_activations)
 
-    # Checking for feature_extractor summary 
+    # Checking for feature_extractor summary
     feature_extractor.summary()
     # extract the labels from the _ds batches and concatenate them into one array
     train_labels = np.concatenate([y for x, y in train_ds], axis=0)
     val_labels = np.concatenate([y for x, y in val_ds], axis=0)
     test_labels = np.concatenate([y for x, y in testing_ds], axis=0)
 
-    return train_x_avg, train_labels, val_x_avg, val_labels
+    return train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels
 
-def task_10(train_x_avg, train_labels, val_x_avg, val_labels):
+def task_10(train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels):
     '''
-    Task 10: Perform new training, validation and test sets (task 9) on model with 
+    Task 10: Perform new training, validation and test sets (task 9) on model with
             best learning rate and non-zero momentum.
             For comparing in this task, we trained 2 model with different momentum:
-            model 1: lr = 0.1, momentum = 0.0
-            model 2: lr = 0.1, momentum = 0.5
+            model 1: lr = 0.01, momentum = 0.0
+            model 2: lr = 0.01, momentum = 0.5
     Input: training, validation and test sets (task 9)
     '''
 
@@ -515,87 +583,124 @@ def task_10(train_x_avg, train_labels, val_x_avg, val_labels):
     x = layers.Dropout(0.2)(x)
     outputs = layers.Dense(5, activation='softmax', name="Classifier")(x)
 
-    model = Model(inputs = inputs, outputs = outputs)
-    m_model = Model(inputs = inputs, outputs = outputs)
+    m1_model = Model(inputs = inputs, outputs = outputs)
+    m2_model = Model(inputs = inputs, outputs = outputs)
+    m3_model = Model(inputs = inputs, outputs = outputs)
 
-    # Perform with the best learning rate and non zero momentum
+    # Perform with the best learning rate and 3 non-zero momentums
     # The best learning rate found in task 7
-    LEARNING_RATE = 0.1
-    MOMENTUM = 0.5
-    
+    LEARNING_RATE = 0.01
+
+    MOMENTUM_1 = 0.15
+    MOMENTUM_2 = 0.5
+    MOMENTUM_3 = 0.9
+
     # Train 2 models with different momentum 0.0 and 0.5
-    print(f'{LEARNING_RATE} learning rate, 0 momentum model TRAINING')
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=0, nesterov=False),
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_1} momentum model TRAINING')
+    m1_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_1, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-    
-    history = model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
-    
-    
-    print(f'{LEARNING_RATE} learning rate, {MOMENTUM} momentum model TRAINING')
-    m_model.compile(
-        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False),
+
+    m1_history = m1_model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
+    m1_eval_results = m1_model.evaluate(test_x_avg, test_labels)
+
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_2} momentum model TRAINING')
+    m2_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_2, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
-        
-    m_history = m_model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
 
-    # Prepare plot argument for model lr = 0.1, momentum = 0
-    loss = history.history['loss']
-    val_loss = history.history['val_loss']
-    acc = history.history['accuracy']
-    val_acc = history.history['val_accuracy']
+    m2_history = m2_model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
+    m2_eval_results = m2_model.evaluate(test_x_avg, test_labels)
 
-    # Prepare plot argument for model lr = 0.1, momentum = 0.5
-    m_loss = m_history.history['loss']
-    m_val_loss = m_history.history['val_loss']
-    m_acc = m_history.history['accuracy']
-    m_val_acc = m_history.history['val_accuracy']
+    print(f'{LEARNING_RATE} learning rate, {MOMENTUM_3} momentum model TRAINING')
+    m3_model.compile(
+        optimizer=optimizers.SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM_3, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
 
-    acc_vals = [acc, val_acc, m_acc, m_val_acc]
-    loss_vals = [loss, val_loss, m_loss, m_val_loss]
-    
+    m3_history = m3_model.fit(x=train_x_avg, y=train_labels, epochs=EPOCHS, validation_data=(val_x_avg, val_labels))
+    m3_eval_results = m3_model.evaluate(test_x_avg, test_labels)
+
+    # Prepare plot argument for model lr = 0.1, momentum_1
+    m1_loss = m1_history.history['loss']
+    m1_val_loss = m1_history.history['val_loss']
+    m1_acc = m1_history.history['accuracy']
+    m1_val_acc = m1_history.history['val_accuracy']
+
+    # Prepare plot argument for model lr = 0.1, momentum_2
+    m2_loss = m2_history.history['loss']
+    m2_val_loss = m2_history.history['val_loss']
+    m2_acc = m2_history.history['accuracy']
+    m2_val_acc = m2_history.history['val_accuracy']
+
+    # Prepare plot argument for model lr = 0.1, momentum_3
+    m3_loss = m3_history.history['loss']
+    m3_val_loss = m3_history.history['val_loss']
+    m3_acc = m3_history.history['accuracy']
+    m3_val_acc = m3_history.history['val_accuracy']
+
+    # find the y axis limits
+    acc_vals = [m1_acc, m1_val_acc, m2_acc, m2_val_acc, m3_acc, m3_val_acc]
     acc_y_axis_max = max(flatten_list(acc_vals)) + 0.1
     acc_y_axis_min = min(flatten_list(acc_vals)) - 0.1
+    
+    loss_vals = [m1_loss, m1_val_loss, m2_loss, m2_val_loss, m3_loss, m3_val_loss]
     loss_y_axis_max = max(flatten_list(loss_vals)) + 0.1
     loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
-    
+
+
     epochs_range = range(EPOCHS)
 
-    # Perform graph for comparing lr = 0.1, momentum = 0 and lr = 0.1, momentum = 0.5
+    # Plot the 3 different learning rates
     plt.figure(figsize=(8, 8))
-    plt.subplot(2, 2, 1)
-    plt.plot(epochs_range, m_acc, label='Training')
-    plt.plot(epochs_range, m_val_acc, label='Validation')
+    plt.subplot(2, 3, 1)
+    plt.plot(epochs_range, m1_acc, label='Training')
+    plt.plot(epochs_range, m1_val_acc, label='Validation')
     plt.legend(loc='lower right')
     plt.ylabel('Accuracy', fontsize=12)
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_1}')
 
-    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM}')
-
-    plt.subplot(2, 2, 2)
-    plt.plot(epochs_range, acc, label='Training Accuracy')
-    plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+    plt.subplot(2, 3, 2)
+    plt.plot(epochs_range, m2_acc, label='Training Accuracy')
+    plt.plot(epochs_range, m2_val_acc, label='Validation Accuracy')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
-    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = 0')
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_2}')
 
-    plt.subplot(2, 2, 3)
-    plt.plot(epochs_range, m_loss, label='Training Loss')
-    plt.plot(epochs_range, m_val_loss, label='Validation Loss')
+    plt.subplot(2, 3, 3)
+    plt.plot(epochs_range, m3_acc, label='Training Accuracy')
+    plt.plot(epochs_range, m3_val_acc, label='Validation Accuracy')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+    plt.xlabel('Epochs')
+    plt.title(f'Learning Rate = {LEARNING_RATE}\n Momentum = {MOMENTUM_3}')
+
+
+    plt.subplot(2, 3, 4)
+    plt.plot(epochs_range, m1_loss, label='Training Loss')
+    plt.plot(epochs_range, m1_val_loss, label='Validation Loss')
     plt.ylabel(f'Loss', fontsize=12)
+    plt.xlabel(f"\nTest ds loss: {int(round(m1_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m1_eval_results[1], 2)*100)}%")
     plt.ylim(loss_y_axis_min, loss_y_axis_max)
- 
-    plt.subplot(2, 2, 4)
-    plt.plot(epochs_range, loss, label='Training Loss')
-    plt.plot(epochs_range, val_loss, label='Validation Loss')
+
+    plt.subplot(2, 3, 5)
+    plt.plot(epochs_range, m2_loss, label='Training Loss')
+    plt.plot(epochs_range, m2_val_loss, label='Validation Loss')
+    plt.xlabel(f"\nTest ds loss: {int(round(m2_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m2_eval_results[1], 2)*100)}%")
     plt.ylim(loss_y_axis_min, loss_y_axis_max)
-    
+
+    plt.subplot(2, 3, 6)
+    plt.plot(epochs_range, m3_loss, label='Training Loss')
+    plt.plot(epochs_range, m3_val_loss, label='Validation Loss')
+    plt.xlabel(f"\nTest ds loss: {int(round(m3_eval_results[0], 2)*100)}%\nTest ds accuracy: {int(round(m3_eval_results[1], 2)*100)}%")
+    plt.ylim(loss_y_axis_min, loss_y_axis_max)
+
     plt.show()
 
-
-
-if __name__ == '__main__':   
+if __name__ == '__main__':
 
     import_model = task_2()
     # import_model.summary()
@@ -605,10 +710,9 @@ if __name__ == '__main__':
     train_ds, val_ds, test_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
-    task_7(import_model, train_ds, val_ds)
-    # task_8(import_model, train_ds, val_ds, test_ds)
+    # task_7(import_model, train_ds, val_ds)
+    task_8(import_model, train_ds, val_ds, test_ds)
 
-    #train_x_avg, train_labels, val_x_avg, val_labels = task_9()
-    #task_10(train_x_avg, train_labels, val_x_avg, val_labels)
-    
-    
+    # train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels = task_9()
+    # task_10(train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels)
+
