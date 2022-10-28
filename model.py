@@ -1,22 +1,23 @@
-import pathlib
-import os
 import datetime
 import time
 
 import numpy as np
-from paramiko import PasswordRequiredException
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras import layers, Model, utils, optimizers, losses, models
+from tensorflow.keras import layers, Model, optimizers, losses
 import matplotlib.pyplot as plt
-
 
 # model expected shape=(None, 224, 224)
 IMG_SIZE = (224, 224)
-IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
 flowers_dir = 'small_flower_dataset/'
 EPOCHS = 30
 
+""" Project Team
+
+    - Phan Thao Nhi Nguyen n11232862
+	- Nathan Eshraghi - n11353295
+ 
+"""
 
 def task_1():
     """
@@ -49,6 +50,7 @@ def task_3(base_model):
     # remove the classification layer
     x = base_model.layers[-2].output
 
+    # add new layers to accomodate classification of new small flower dataset
     x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
     outputs = layers.Dense(5, activation='softmax')(x)
@@ -139,19 +141,20 @@ def task_5(flower_model, train_ds, val_ds):
     start = time.time()
 
     # Train model with lr 0,01, momentum 0
-
     # Declare learning rate constant
     LR_1 = 0.01
+    
+    # Declare momentum constant
     MOMENTUM = 0
 
-    #Compile the model
+    # Compile the model
     flower_model.compile(
         optimizer=optimizers.SGD(learning_rate=LR_1, momentum=MOMENTUM, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"]
     )
 
-    # History object for training loss values, validate values
+    # fit the model and store training history
     history = flower_model.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
     # end time
@@ -218,29 +221,37 @@ def task_7(import_model, train_ds, val_ds):
     train_ds = train_ds.prefetch(buffer_size=32)
     val_ds = val_ds.prefetch(buffer_size=32)
 
-    # Establish learning rates to test
+    # Establish learning rates
     LR_1 = 0.001
+    LR_ORIG = 0.01
     LR_2 = 0.1
     LR_3 = 1
 
-    # Duplicate model accross 3 variables for testing multiple learning rates
+    # Store model in variable
     learn_rate_1 = task_3(import_model)
+    learn_rate_original = task_3(import_model)
     learn_rate_2 = task_3(import_model)
     learn_rate_3 = task_3(import_model)
 
-    # Train model with 0.1 learning rate
+    # Train model with 0.001 learning rate
     learn_rate_1.compile(
         optimizer=optimizers.SGD(learning_rate=LR_1, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
 
-    # Train model with 1 learning rate
+    # Train model with 0.01 learning rate
+    learn_rate_original.compile(
+        optimizer=optimizers.SGD(learning_rate=LR_ORIG, momentum=0.0, nesterov=False),
+        loss=losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"])
+    
+    # Train model with 0.1 learning rate
     learn_rate_2.compile(
         optimizer=optimizers.SGD(learning_rate=LR_2, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
         metrics=["accuracy"])
 
-    # Train model with 10 learning rate
+    # Train model with 1 learning rate
     learn_rate_3.compile(
         optimizer=optimizers.SGD(learning_rate=LR_3, momentum=0.0, nesterov=False),
         loss=losses.SparseCategoricalCrossentropy(),
@@ -248,8 +259,9 @@ def task_7(import_model, train_ds, val_ds):
 
     epochs_range = range(EPOCHS)
 
-    
+    # fit models and store training history
     lr_1_history = learn_rate_1.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
+    lr_orig_history = learn_rate_original.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
     lr_2_history = learn_rate_2.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
     lr_3_history = learn_rate_3.fit(train_ds, epochs=EPOCHS, validation_data=val_ds)
 
@@ -259,6 +271,11 @@ def task_7(import_model, train_ds, val_ds):
     lr_1_acc = lr_1_history.history['accuracy']
     lr_1_val_acc = lr_1_history.history['val_accuracy']
 
+    lr_orig_loss = lr_orig_history.history['loss']
+    lr_orig_val_loss = lr_orig_history.history['val_loss']
+    lr_orig_acc = lr_orig_history.history['accuracy']
+    lr_orig_val_acc = lr_orig_history.history['val_accuracy']
+    
     lr_2_loss = lr_2_history.history['loss']
     lr_2_val_loss = lr_2_history.history['val_loss']
     lr_2_acc = lr_2_history.history['accuracy']
@@ -270,16 +287,16 @@ def task_7(import_model, train_ds, val_ds):
     lr_3_val_acc = lr_3_history.history['val_accuracy']
 
     # find the y axis limits for the plots
-    loss_vals = [lr_1_loss, lr_1_val_acc, lr_2_loss, lr_2_val_acc, lr_3_loss, lr_3_val_acc]
+    loss_vals = [lr_1_loss, lr_1_val_loss, lr_2_loss, lr_2_val_loss, lr_3_loss, lr_3_val_loss, lr_orig_loss, lr_orig_val_loss]
     loss_y_axis_min = min(flatten_list(loss_vals)) - 0.1
 
-    accuracies = [lr_1_acc, lr_1_val_acc, lr_2_acc, lr_2_val_acc, lr_3_acc, lr_3_val_acc]
+    accuracies = [lr_1_acc, lr_1_val_acc, lr_2_acc, lr_2_val_acc, lr_3_acc, lr_3_val_acc, lr_orig_acc, lr_orig_val_acc]
     acc_y_axis_max = max(flatten_list(accuracies)) + 0.1
     acc_y_axis_min = min(flatten_list(accuracies)) - 0.1
     
     # Make the plots
     plt.figure(figsize=(8, 8))
-    plt.subplot(2, 3, 1)
+    plt.subplot(2, 4, 1)
     plt.plot(epochs_range, lr_1_acc, label='Training')
     plt.plot(epochs_range, lr_1_val_acc, label='Validation')
     plt.legend(loc='lower right')
@@ -287,30 +304,41 @@ def task_7(import_model, train_ds, val_ds):
     plt.ylabel(f'Accuracy', fontsize=12)
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
 
-    plt.subplot(2, 3, 2)
+    plt.subplot(2, 4, 2)
+    plt.plot(epochs_range, lr_orig_acc, label='Training')
+    plt.plot(epochs_range, lr_orig_val_acc, label='Validation')
+    plt.title(f'Learning Rate = {LR_ORIG}')
+    plt.ylim(acc_y_axis_min, acc_y_axis_max)
+
+    plt.subplot(2, 4, 3)
     plt.plot(epochs_range, lr_2_acc, label='Training')
     plt.plot(epochs_range, lr_2_val_acc, label='Validation')
     plt.title(f'Learning Rate = {LR_2}')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
 
-    plt.subplot(2, 3, 3)
+    plt.subplot(2, 4, 4)
     plt.plot(epochs_range, lr_3_acc, label='Training')
     plt.plot(epochs_range, lr_3_val_acc, label='Validation')
     plt.title(f'Learning Rate = {LR_3}')
     plt.ylim(acc_y_axis_min, acc_y_axis_max)
 
-    plt.subplot(2, 3, 4)
+    plt.subplot(2, 4, 5)
     plt.plot(epochs_range, lr_1_loss, label='Training')
     plt.plot(epochs_range, lr_1_val_loss, label='Validation')
     plt.ylim(loss_y_axis_min, 2)
     plt.ylabel(f'Loss', fontsize=12)
 
-    plt.subplot(2, 3, 5)
+    plt.subplot(2, 4, 6)
+    plt.plot(epochs_range, lr_orig_loss, label='Training')
+    plt.plot(epochs_range, lr_orig_val_loss, label='Validation')
+    plt.ylim(loss_y_axis_min, 2)
+    
+    plt.subplot(2, 4, 7)
     plt.plot(epochs_range, lr_2_loss, label='Training')
     plt.plot(epochs_range, lr_2_val_loss, label='Validation')
     plt.ylim(loss_y_axis_min, 2)
 
-    plt.subplot(2, 3, 6)
+    plt.subplot(2, 4, 8)
     plt.plot(epochs_range, lr_3_loss, label='Training')
     plt.plot(epochs_range, lr_3_val_loss, label='Validation')
 
@@ -326,14 +354,14 @@ def task_8(import_model, train_ds, val_ds, test_ds):
     Output: graph with different momentum
     """
 
-    # The best learning rate found in task 7
-    LEARNING_RATE = 0.01
+    # the best learning rate found in task 7
+    LEARNING_RATE = 0.1
 
-    # Declare 3 non-zero momentums
+    # declare 3 non-zero momentums
     MOMENTUM_0 = 0
     MOMENTUM_1 = 0.15
-    MOMENTUM_2 = 0.5
-    MOMENTUM_3 = 0.9
+    MOMENTUM_2 = 0.4
+    MOMENTUM_3 = 0.8
 
     m0_model = task_3(import_model)
     m1_model = task_3(import_model)
@@ -543,17 +571,19 @@ def task_9():
 
 
     base_model = MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights="imagenet")
+    
     # Freeze layer exclude new layer
     for layer in base_model.layers:
         layer.trainable=False
 
-    #feature extraction
+    # Feature extraction
     feature_extractor = Model(inputs=base_model.inputs, outputs=base_model.output)
 
     train_activations = feature_extractor.predict(train_ds)
     val_activations = feature_extractor.predict(val_ds)
     test_activations = feature_extractor.predict(testing_ds)
 
+    # Declare pooling layer and apply to activations
     global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
     train_x_avg = global_average_layer(train_activations)
     val_x_avg = global_average_layer(val_activations)
@@ -561,7 +591,8 @@ def task_9():
 
     # Checking for feature_extractor summary
     feature_extractor.summary()
-    # extract the labels from the _ds batches and concatenate them into one array
+    
+    # Extract the labels from the _ds batches and concatenate them into one array
     train_labels = np.concatenate([y for x, y in train_ds], axis=0)
     val_labels = np.concatenate([y for x, y in val_ds], axis=0)
     test_labels = np.concatenate([y for x, y in testing_ds], axis=0)
@@ -578,22 +609,24 @@ def task_10(train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_l
     Input: training, validation and test sets (task 9)
     '''
 
+    # Create model input layer and classification layers
     inputs = tf.keras.Input(shape=(1280), name="Extracted Features")
     x = layers.Dense(256, activation='relu')(inputs)
     x = layers.Dropout(0.2)(x)
     outputs = layers.Dense(5, activation='softmax', name="Classifier")(x)
 
+    # Declare model variables for each momentum being tested
     m1_model = Model(inputs = inputs, outputs = outputs)
     m2_model = Model(inputs = inputs, outputs = outputs)
     m3_model = Model(inputs = inputs, outputs = outputs)
 
     # Perform with the best learning rate and 3 non-zero momentums
     # The best learning rate found in task 7
-    LEARNING_RATE = 0.01
+    LEARNING_RATE = 0.1
 
     MOMENTUM_1 = 0.15
-    MOMENTUM_2 = 0.5
-    MOMENTUM_3 = 0.9
+    MOMENTUM_2 = 0.4
+    MOMENTUM_3 = 0.8
 
     # Train 2 models with different momentum 0.0 and 0.5
     print(f'{LEARNING_RATE} learning rate, {MOMENTUM_1} momentum model TRAINING')
@@ -707,12 +740,12 @@ if __name__ == '__main__':
     # flower_model = task_3(import_model)
     # flower_model.summary()
 
-    train_ds, val_ds, test_ds = task_4()
+    # train_ds, val_ds, test_ds = task_4()
     # history = task_5(flower_model, train_ds, val_ds)
     # task_6(history)
     # task_7(import_model, train_ds, val_ds)
-    task_8(import_model, train_ds, val_ds, test_ds)
+    # task_8(import_model, train_ds, val_ds, test_ds)
 
-    # train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels = task_9()
-    # task_10(train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels)
+    train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels = task_9()
+    task_10(train_x_avg, train_labels, val_x_avg, val_labels, test_x_avg, test_labels)
 
