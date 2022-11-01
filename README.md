@@ -1,7 +1,7 @@
 
 *A machine learning assignment by Nina and Nathan*
 
-For this assignment we explored transfer learning using Tensorflow/Keras *without* fine-tuning, that is, freezing base model layers. The transfer learning process was then sped up using the headless base model as a 'feature extractor preprocessor', see `task_9` and `task_10` in `model.py`. This involved creating an auxiliary dataset of activations from the (headless) base model, `F(X)`, and the original labels, `y`. The new model's input layer matches the output shape of `F(X)`
+For this assignment we explored transfer learning using Tensorflow/Keras *without* fine-tuning, that is, freezing base model layers. The transfer learning process was then sped up using the headless base model, `F()`, as a 'feature extractor preprocessor', see `task_9` and `task_10` in `model.py`. This involved creating an auxiliary dataset of activations from the (headless) base model, `F(X)`, and the original labels, `y`. The new model's input layer matches the output shape of `F()`'s last layer.
 
 ### ~ Some observations ~
 There are immense savings in computation resources using this technique because activations for frozen layers don't need to be recomputed. This limits training to layers used for classification at the end of the model. For transfer learning *with* fine-tuning, some variation of this process may be possible depending of which layers are un-frozen.
